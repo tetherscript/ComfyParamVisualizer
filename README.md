@@ -38,7 +38,12 @@ To use it, you (ok, this is simplified a bit)
 - You can use it on up to 6 dimensions in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.
 
 SCRIPTS, YOU SAY?  SECURITY!
-- Yes, there are 3 python scripts and some batch files to call them.  And you are right to question the security aspects of this.  Peruse the scripts, run them sandboxed, whatever helps.  I have included the ChatGPT5 prompts to recreate the entire functionality.  I suggest using these prompts to explore the specifications and tweak these scripts just as you need them. 
+- Yes, there are 3 python scripts and some batch files to call them.  And you are right to question the security aspects of this.  Peruse the scripts, run them sandboxed, whatever helps.  I have included the ChatGPT5 prompts to recreate the entire functionality.  I suggest using these prompts to explore the specifications and tweak these scripts just as you need them.
+
+# DETAILED INSTRUCTIONS
+
+1) To keep this simple, we'll use the default, simple ComfyUI workflow.  But you could use any workflow, even the crazy huge ones.
+2) 
 
 
 
