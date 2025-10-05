@@ -1,5 +1,6 @@
 # ComfyParamVisualizer
 
+Exploring the workflow parameters of 1584 images.
 https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 
 ![view_grid1](https://github.com/user-attachments/assets/f4345a6a-4d20-4c17-8dac-824a0ad867dc)
