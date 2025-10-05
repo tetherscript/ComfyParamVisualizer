@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+# gen_images_7d.py
+#
+# 7-axis ComfyUI sweeper (s, t, u, v, x, y, z). IDs only. API JSON only.
+# Values per axis are read from line-delimited files under <basepath>/params:
+#   --t 31-steps.txt  --as int   -> reads <basepath>/params/31-steps.txt; applies to node 31, input 'steps'
+#   --u 31-cfg.txt    --as float -> reads <basepath>/params/31-cfg.txt;   applies to node 31, input 'cfg'
+#   --v 38-text.txt   --as string-> reads <basepath>/params/38-text.txt;  applies to node 38, input 'text'
+#
+# Save target:
+#   --save-target 9:filename_prefix.txt
+#     -> reads <basepath>/params/9-filename_prefix.txt for <prefix_text>
+#     -> sets node 9's filename_prefix to:
+#        "<prefix_text>/<nodeId>-<prop>-<val>--<nodeId>-<prop>-<val>..."
+#        (floats keep a decimal point, then '.' becomes '_')
+#
+# Cleanup + Resume:
+#   Images live in <basepath>/params/images/<prefix_text> (files only; subfolders untouched).
+#   For the planned sweep, we compute the complete set of expected filenames:
+#     "<segments>_00001.png" for each permutation (segments as above)
+#   - Remove any files in that folder that are NOT in the expected set.
+#   - Resume by skipping permutations whose expected file already exists.
+#
+# Stdlib only.
+
+import argparse
+import copy
+import itertools
+import json
+import os
+import re
+import sys
+import uuid
+from urllib import request, error
+
+AXES = ["s", "t", "u", "v", "x", "y", "z"]  # t and u required
+
+# -------------------- API JSON helpers --------------------
+
+def load_api_prompt(path):
+    with open(path, "r", encoding="utf-8") as f:
+        doc = json.load(f)
+    if isinstance(doc, dict) and "prompt" in doc and isinstance(doc["prompt"], dict):
+        return doc["prompt"]
+    if isinstance(doc, dict) and "nodes" in doc and isinstance(doc["nodes"], dict):
+        return doc["nodes"]
+    if isinstance(doc, dict):
+        return doc
+    raise ValueError("Workflow must be API-format JSON (export via 'Save (API format)').")
+
+def set_input_literal(prompt, node_id, input_name, value):
+    if node_id not in prompt:
+        raise KeyError("Node id '%s' not found in API JSON." % node_id)
+    node = prompt[node_id]
+    if "inputs" not in node or not isinstance(node["inputs"], dict):
+        raise KeyError("Node '%s' has no 'inputs' dict." % node_id)
+    node["inputs"][input_name] = value  # force literal (overrides any link)
+
+def post_prompt(server, prompt_dict, client_id):
+    payload = {"prompt": prompt_dict, "client_id": client_id}
+    data = json.dumps(payload).encode("utf-8")
+    req = request.Request(server.rstrip("/") + "/prompt", data=data,
+                          headers={"Content-Type": "application/json"}, method="POST")
+    with request.urlopen(req) as resp:
+        return resp.read()
+
+# -------------------- Axis spec + values --------------------
+
+_axis_spec_re = re.compile(r"^(?P<nid>\d+)-(?P<input>[A-Za-z0-9_]+)\.txt$")
+
+def parse_axis_spec(filename):
+    """
+    '31-steps.txt' -> ('31', 'steps')
+    """
+    base = os.path.basename(filename)
+    m = _axis_spec_re.match(base)
+    if not m:
+        raise ValueError("Axis spec '%s' must look like '<nodeId>-<input>.txt'." % filename)
+    return m.group("nid"), m.group("input")
+
+def coerce_token(token, as_type):
+    t = as_type.lower()
+    if t in ("string", "str"):
+        return token
+    if t == "int":
+        return int(token, 10)
+    if t == "float":
+        return float(token)
+    # auto: try int, then float, else string
+    try:
+        return int(token, 10)
+    except ValueError:
+        try:
+            return float(token)
+        except ValueError:
+            return token
+
+def read_values_file(path, as_type, axis_name, verbose=False):
+    """
+    Read a line-delimited values file. Ignores blank lines and lines starting with '#'.
+    Returns a list of parsed tokens.
+    """
+    if verbose:
+        print("[INFO] Axis %s: reading values from %s (type=%s)" % (axis_name, path, as_type))
+    if not os.path.isfile(path):
+        raise FileNotFoundError("Axis %s values file not found: %s" % (axis_name, path))
+
+    vals = []
+    with open(path, "r", encoding="utf-8") as f:
+        for i, raw in enumerate(f, 1):
+            line = raw.rstrip("\n")
+            if not line.strip():
+                continue
+            if line.lstrip().startswith("#"):
+                continue
+            try:
+                vals.append(coerce_token(line, as_type))
+            except Exception as e:
+                raise ValueError("Axis %s: parse error on line %d in %s (%s)"
+                                 % (axis_name, i, path, str(e)))
+    if verbose:
+        print("[INFO] Axis %s: %d values loaded" % (axis_name, len(vals)))
+    if not vals:
+        raise ValueError("Axis %s: no values found in %s" % (axis_name, path))
+    return vals
+
+# -------------------- Save-target / prefix text --------------------
+
+def parse_save_target(arg):
+    """
+    '9:filename_prefix.txt' -> ('9', 'filename_prefix.txt')
+    We will read <basepath>/params/9-filename_prefix.txt
+    """
+    if ":" not in arg:
+        raise ValueError("--save-target must look like '<nodeId>:filename_prefix.txt'")
+    left, right = arg.split(":", 1)
+    left = left.strip()
+    right = right.strip()
+    if not left.isdigit():
+        raise ValueError("Left side of --save-target must be a numeric node id.")
+    if right != "filename_prefix.txt":
+        raise ValueError("Right side of --save-target must be 'filename_prefix.txt'.")
+    return left, right
+
+def read_prefix_text(basepath_params, node_id, verbose=False):
+    path = os.path.join(basepath_params, "%s-filename_prefix.txt" % node_id)
+    if verbose:
+        print("[INFO] Reading filename_prefix from %s" % path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError("Prefix file not found: %s" % path)
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    text = content.strip()
+    if not text:
+        raise ValueError("Prefix file %s is empty." % path)
+    return text
+
+# -------------------- Filename segment builders --------------------
+
+def safe_value_str(v):
+    # Floats: always keep a decimal point; then replace '.' with '_'
+    if isinstance(v, float):
+        s = "{:.15f}".format(v).rstrip("0").rstrip(".")
+        if "." not in s:
+            s += ".0"
+    else:
+        s = str(v)
+    return s.replace(".", "_")
+
+def build_segments(axis_specs, axis_values_for_combo):
+    """
+    Build the segment string from FINAL values per (node_id,input) pair in first-appearance
+    order by axis (s,t,u,v,x,y,z). Later axes override earlier ones.
+    Returns: segments string "<id>-<prop>-<val>--..."
+    """
+    final_map = {}
+    order = []
+    for axis in AXES:
+        spec = axis_specs.get(axis)
+        if not spec:
+            continue
+        val = axis_values_for_combo.get(axis, None)
+        if val is None:
+            continue
+        nid, prop = spec
+        key = (nid, prop)
+        final_map[key] = val
+        if key not in order:
+            order.append(key)
+    parts = []
+    for (nid, prop) in order:
+        parts.append("%s-%s-%s" % (nid, prop, safe_value_str(final_map[(nid, prop)])))
+    return "--".join(parts)
+
+# -------------------- Images folder cleanup + resume --------------------
+
+def ensure_dir(path):
+    os.makedirs(path, exist_ok=True)
+
+def list_files(path):
+    try:
+        return [n for n in os.listdir(path) if os.path.isfile(os.path.join(path, n))]
+    except FileNotFoundError:
+        return []
+
+def cleanup_folder(images_dir_for_prefix, expected_names, verbose=False):
+    """
+    Remove any files in images_dir_for_prefix that are not in expected_names.
+    Do not touch subfolders.
+    """
+    ensure_dir(images_dir_for_prefix)
+    current = set(list_files(images_dir_for_prefix))
+    for name in sorted(current):
+        if name not in expected_names:
+            try:
+                os.remove(os.path.join(images_dir_for_prefix, name))
+                if verbose:
+                    print("[CLEAN] Removed extraneous file:", name)
+            except Exception as e:
+                print("[WARN] Could not remove %s: %s" % (name, str(e)), file=sys.stderr)
+
+# -------------------- Main --------------------
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="ComfyUI 7D sweeper (IDs only). t and u are required. Values from <basepath>/params/*.txt."
+    )
+    ap.add_argument("--basepath", required=True,
+                    help="Absolute path to the project base folder (must contain 'params' subfolder).")
+    ap.add_argument("--workflow_api", required=True,
+                    help="Path to API-format workflow JSON (exported via 'Save (API format)') to POST to /prompt.")
+    ap.add_argument("--server", default="http://127.0.0.1:8188",
+                    help="ComfyUI server base URL.")
+    ap.add_argument("--client-id", default=None,
+                    help="Optional client_id (default: random UUID4).")
+
+    # Axis specs: each is "<nodeId>-<input>.txt" (relative to <basepath>/params)
+    for axis in AXES:
+        ap.add_argument("--" + axis, default=None,
+                        help="Axis %s file name (e.g., '31-steps.txt') located under <basepath>/params." % axis)
+
+    # Global types list consumed in axis order for provided axes
+    ap.add_argument("--as", dest="types", action="append", default=[],
+                    help="Type for the next provided axis in order (s,t,u,v,x,y,z). "
+                         "Repeat per axis. One of: auto, int, float, string. "
+                         "If omitted for an axis, defaults to auto.")
+
+    # Save target: EXACTLY one, "nodeId:filename_prefix.txt"
+    ap.add_argument("--save-target", required=True,
+                    help="Target SaveImage node and prefix file spec, e.g. '9:filename_prefix.txt'. "
+                         "Reads '<basepath>/params/9-filename_prefix.txt' for the folder prefix component.")
+
+    ap.add_argument("--dry-run", action="store_true", help="Do not POST; just print plan and cleanup actions.")
+    ap.add_argument("--verbose", action="store_true", help="Verbose logging.")
+
+    args = ap.parse_args()
+
+    # Validate basepath
+    if not os.path.isabs(args.basepath):
+        print("Error: --basepath must be an absolute path.", file=sys.stderr)
+        sys.exit(1)
+    base_params = os.path.join(args.basepath, "params")
+    images_root = os.path.join(base_params, "images")
+    if not os.path.isdir(base_params):
+        print("Error: '%s' does not exist. Expected <basepath>/params." % base_params, file=sys.stderr)
+        sys.exit(1)
+
+    # Load API workflow
+    try:
+        prompt_base = load_api_prompt(args.workflow_api)
+    except Exception as e:
+        print("Error loading --workflow_api: %s" % str(e), file=sys.stderr)
+        sys.exit(1)
+
+    # Parse save-target and read prefix folder token
+    try:
+        save_node_id, _ = parse_save_target(args.save_target)
+        prefix_folder = read_prefix_text(base_params, save_node_id, verbose=args.verbose)
+        if args.verbose:
+            print("[INFO] Folder prefix token (from %s-filename_prefix.txt) = '%s'" % (save_node_id, prefix_folder))
+    except Exception as e:
+        print("Error in --save-target: %s" % str(e), file=sys.stderr)
+        sys.exit(1)
+
+    # Gather which axes are provided and their types (consumed in axis order)
+    provided_axes = [a for a in AXES if getattr(args, a) is not None]
+    # Enforce t and u present
+    for req_axis in ("t", "u"):
+        if getattr(args, req_axis) is None:
+            print("Axis '%s' is required. Provide --%s <nodeId>-<input>.txt" % (req_axis, req_axis), file=sys.stderr)
+            sys.exit(1)
+
+    # Build per-axis type map from --as queue
+    type_queue = list(args.types or [])
+    type_map = {}
+    for axis in AXES:
+        if getattr(args, axis) is not None:
+            as_type = (type_queue.pop(0) if type_queue else "auto")
+            tnorm = as_type.lower()
+            if tnorm not in ("auto", "int", "float", "string", "str"):
+                print("Invalid --as value for axis %s: %s (use auto|int|float|string)" % (axis, as_type), file=sys.stderr)
+                sys.exit(1)
+            type_map[axis] = "string" if tnorm == "str" else tnorm
+        else:
+            type_map[axis] = None
+
+    # Parse axis specs and read values
+    axis_specs = {}   # axis -> (node_id, input_name)
+    axis_values = {}  # axis -> [values] or [None] if unused
+
+    for axis in AXES:
+        spec_name = getattr(args, axis)
+        if spec_name is None:
+            axis_values[axis] = [None]
+            continue
+
+        try:
+            nid, inp = parse_axis_spec(spec_name)
+        except Exception as e:
+            print("Axis %s spec error: %s" % (axis, str(e)), file=sys.stderr)
+            sys.exit(1)
+
+        if nid not in prompt_base:
+            print("Axis %s: node id '%s' not found in --workflow_api." % (axis, nid), file=sys.stderr)
+            sys.exit(1)
+
+        axis_specs[axis] = (nid, inp)
+
+        values_path = os.path.join(base_params, spec_name)
+        try:
+            vals = read_values_file(values_path, type_map[axis] or "auto", axis, verbose=args.verbose)
+        except Exception as e:
+            print(str(e), file=sys.stderr)
+            sys.exit(1)
+
+        axis_values[axis] = vals
+
+        if axis in ("t", "u") and not vals:
+            print("Axis %s requires at least one value (file: %s)." % (axis, values_path), file=sys.stderr)
+            sys.exit(1)
+
+        if args.verbose:
+            print("[INFO] Axis %s -> node %s, input '%s', count=%d"
+                  % (axis, nid, inp, len(vals)))
+
+    # Build all permutations (in fixed axis order)
+    dims = [range(len(axis_values[a])) for a in AXES]
+    combos = list(itertools.product(*dims))
+    total = len(combos)
+
+    # Compute expected filenames for cleanup and resume
+    images_dir_for_prefix = os.path.join(images_root, prefix_folder)
+    expected_files = set()
+    seg_cache = []  # keep segments in order alongside combos for resume loop
+
+    for idxs in combos:
+        # Value snapshot for this combo
+        axis_val = {axis: axis_values[axis][i] for axis, i in zip(AXES, idxs)}
+        # Build segments from final values by (node_id,input)
+        segments = build_segments(axis_specs, axis_val)
+        seg_cache.append(segments)
+        expected_files.add("%s_%05d.png" % (segments, 1))  # always _00001.png per unique prefix
+
+    # Cleanup anything not expected (files only)
+    cleanup_folder(images_dir_for_prefix, expected_files, verbose=args.verbose)
+
+    # Dry-run: show plan and exit
+    print("Planned permutations: " + " * ".join(str(len(axis_values[a])) for a in AXES) + " = %d" % total)
+    if args.dry_run:
+        print("[DRY] Folder = %s" % images_dir_for_prefix)
+        print("[DRY] Expected file count = %d" % len(expected_files))
+        # Show a couple examples
+        for i, s in enumerate(seg_cache[:min(5, len(seg_cache))], 1):
+            print("[DRY] e.g. %s" % os.path.join(images_dir_for_prefix, "%s_00001.png" % s))
+        return
+
+    # Enqueue, skipping combos whose file already exists
+    client_id = args.client_id or str(uuid.uuid4())
+    enq = 0
+
+    for idxs, segments in zip(combos, seg_cache):
+        # If this expected file already exists, skip
+        target_png = os.path.join(images_dir_for_prefix, "%s_00001.png" % segments)
+        if os.path.isfile(target_png):
+            if args.verbose:
+                print("[SKIP] %s already exists" % target_png)
+            continue
+
+        # Deep copy API prompt and apply axis values
+        prompt = copy.deepcopy(prompt_base)
+        log_parts = []
+
+        for axis, i in zip(AXES, idxs):
+            val = axis_values[axis][i]
+            spec = axis_specs.get(axis)
+            if spec is None or val is None:
+                continue
+            nid, inp = spec
+            try:
+                set_input_literal(prompt, nid, inp, val)
+            except Exception as e:
+                print("[ERR] axis %s -> %s:%s assign failed: %s" % (axis, nid, inp, str(e)), file=sys.stderr)
+                sys.exit(1)
+            log_parts.append("%s=%s" % (axis, str(val)))
+
+        # Build full filename_prefix: "<prefix_folder>/<segments>"
+        filename_prefix = prefix_folder + "/" + segments
+
+        # Set ONLY on the specified SaveImage node
+        try:
+            set_input_literal(prompt, save_node_id, "filename_prefix", filename_prefix)
+        except Exception as e:
+            print("[ERR] save-target set failed on node %s: %s" % (save_node_id, str(e)), file=sys.stderr)
+            sys.exit(1)
+
+        tag = " ".join(log_parts) if log_parts else "(no axes set)"
+        try:
+            post_prompt(args.server, prompt, client_id)
+            enq += 1
+            print("[OK]  %s -> queued (prefix=%s)" % (tag, filename_prefix))
+        except error.HTTPError as e:
+            try:
+                msg = e.read().decode("utf-8", errors="ignore")
+            except Exception:
+                msg = str(e)
+            print("[ERR] HTTP %d: %s" % (e.code, msg), file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print("[ERR] %s" % str(e), file=sys.stderr)
+            sys.exit(1)
+
+    print("Done. Enqueued %d prompts to %s. Images folder: %s" %
+          (enq, args.server, images_dir_for_prefix))
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,93 @@
+TITLE: Create a Python script that extracts picklist (dropdown) items from a ComfyUI node by node_id and property name
+
+ROLE:
+You are an expert Python developer familiar with ComfyUI internals, Windows path handling, and packaging pitfalls. Generate a single, self-contained Python 3 script named "dump_picklist.py" that meets all requirements below exactly. Do not add extra files. Do not use third-party libraries. The script must run with a standard Python 3 interpreter on Windows.
+
+OBJECTIVE:
+Given a ComfyUI installation path, a workflow JSON file, a node_id within that workflow, and a property name on that node, the script writes all possible picklist (dropdown) items for that property to an output text file (one item per line). It also prints a clear summary to the console.
+
+RUNTIME INTERFACE (CLI):
+The script MUST accept exactly 5 command-line arguments in this order:
+1) comfyui_root        (path to ComfyUI install root; supports both "repo layout" and "portable layout")
+2) workflow_filename   (filename of the workflow JSON located in the same directory as the script)
+3) node_id             (string or integer; match regardless of type in the workflow)
+4) property_name       (input key that should have a picklist/dropdown)
+5) output_filename     (filename to be created in the same directory as the script)
+Usage message if incorrect arg count:
+  Usage: python dump_picklist.py <comfyui_root> <workflow_filename> <node_id> <property_name> <output_filename>
+
+INPUT ASSUMPTIONS:
+- The script file and the workflow file are in the same directory.
+- The script must join workflow_filename and output_filename with the directory containing the script (not CWD).
+- The ComfyUI installation may be either:
+  A) "Repo layout": comfy/nodes.py exists under <comfyui_root>/comfy/nodes.py
+  B) "Portable layout": nodes.py exists directly under <comfyui_root>/nodes.py
+- No internet access and no third-party packages.
+
+COMFYUI IMPORT STRATEGY (CRITICAL):
+- Before importing, purge any preloaded or site-packages variants to avoid name clashes:
+    for key in list(sys.modules.keys()):
+        if key == "comfy" or key.startswith("comfy.") or key == "nodes":
+            del sys.modules[key]
+- Force the intended ComfyUI code to the FRONT of sys.path in this order:
+    <comfyui_root>
+    <comfyui_root>\comfy
+    <comfyui_root>\execution
+  Use sys.path.insert(0, path) so these resolve first.
+- If repo layout is present or not, always "import nodes" (both layouts provide a top-level nodes.py). Do NOT import comfy.nodes for the registry in this script.
+- After import, verify that nodes.__file__ is under comfyui_root. If not, exit with a clear error that the wrong package was imported.
+
+WORKFLOW HANDLING:
+- Load the JSON from the workflow file path resolved relative to the script directory.
+- The workflow may have "nodes" as either a list of node dicts (each with "id" and "type") or a dict keyed by node id. Support both.
+- Node id comparison must be flexible: int("3") == 3, i.e., compare as strings or cast both to int when possible.
+- If node id is not found, exit with a precise error message.
+
+NODE CLASS LOOKUP:
+- Use nodes.NODE_CLASS_MAPPINGS (from the imported nodes module) to resolve the class by node type.
+- If mapping does not contain the node type, exit with a precise error suggesting that custom nodes may not be installed in that ComfyUI root.
+
+PICKLIST EXTRACTION LOGIC:
+- Call INPUT_TYPES() on the node class. Expect a dict with "required" and/or "optional" maps.
+- For the given property_name, search "required" first, then "optional".
+- Handle these common shapes and return a list of strings:
+    1) Tuple where first element is a list: (["a","b"],)
+    2) Tuple where second element is a dict with "values" or "choices": ("ENUM", {"values":[...]}), ("ENUM", {"choices":[...]})
+    3) Direct list: ["a","b","c"]
+    4) Dict with "values" or "choices": {"values":[...]}, {"choices":[...]}
+- If found but does not resolve to a static picklist (e.g., computed dynamically), exit with a clear message: "Property exists but is not a static picklist (may be dynamic)".
+- If property_name is not present in either "required" or "optional", exit with: "Property not found in required/optional: <property_name>".
+
+OUTPUT:
+- Write one item per line to the output file path resolved relative to the script directory.
+- Also print a human-readable summary to stdout:
+    ComfyUI root: <path>
+    Workflow: <workflow_filename>
+    Node: <node_type> (ID <node_id>)
+    Property: <property_name>
+    Dumped <N> picklist items to '<output_filename>' in <script_dir>
+    Picklist values:
+      <value1>
+      <value2>
+      ...
+
+ERROR HANDLING / VALIDATION (FAIL FAST with clear messages):
+- Validate comfyui_root exists and contains either comfy/nodes.py OR nodes.py. If neither exists, raise:
+    Not a valid ComfyUI root. Expected comfy/nodes.py OR nodes.py under: <comfyui_root>
+- Validate workflow file exists next to the script.
+- On import failure, print both a concise error and the underlying exception message.
+- On wrong import origin (nodes.__file__), show the actual path and the expected comfyui_root prefix.
+- For every KeyError / AttributeError condition above, give explicit, actionable messages.
+
+CODING STYLE REQUIREMENTS:
+- Pure Python 3 standard library only.
+- Keep imports at top except where path manipulation requires import after sys.path changes (e.g., import nodes).
+- Use only ASCII in code and messages.
+- Keep the file under ~200 logical lines.
+- No try/except swallowing: when catching, print the error and exit(1).
+
+EXAMPLE USAGE TO DOCUMENT IN CODE COMMENTS:
+  python dump_picklist.py W:\ComfyUI\ComfyUI_windows_portable\ComfyUI myworkflow.json 3 sampler_name sampler_names.txt
+
+DELIVERABLE:
+Return only the complete contents of dump_picklist.py in a single Python code block. Do not include any additional commentary outside the code block.

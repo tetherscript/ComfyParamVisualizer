@@ -1,0 +1,144 @@
+ComfyUI ND HTML Viewer Generator – Updated Specifications
+==========================================================
+
+### Goal
+The Python script generates a **self-contained HTML viewer** for exploring a grid of ComfyUI-generated PNG images, where filenames encode multiple parameter dimensions (e.g., cfg, steps, sampler).
+
+### Overview
+Given a folder of `.png` images and a ComfyUI `workflow.json`, the script:
+1. Scans the folder and parses filenames to extract N dimensions.
+2. Reads the ComfyUI workflow to resolve readable node names.
+3. Outputs a **single HTML file** that allows interactive navigation of all combinations of dimensions using sliders.
+
+---
+
+## Command Line Usage
+
+```bash
+python make_viewer.py "C:/path/to/images" "C:/path/to/workflow.json" -o "C:/path/to/output.html" [--lazy-load]
+```
+
+### Arguments
+
+1. **image_dir** – Absolute path to the folder containing PNG images.
+2. **workflow.json** – Absolute path to the ComfyUI workflow file.
+3. `-o, --output` – Absolute path to the generated HTML output file.
+4. `--lazy-load` – *(New optional flag)*  
+   When present, the HTML page **does not embed base64 image data**.  
+   Instead, it loads PNG files directly from disk as needed when sliders move.
+
+---
+
+## Filename Format
+
+Each image filename encodes dimension values using this pattern:
+
+```
+<nodeID>-<property>-<value>--<nodeID>-<property>-<value>... .png
+```
+
+### Rules
+* Use `_` instead of `.` in numeric values (e.g., `1_5` → 1.5).
+* `--` separates dimension groups.
+* Each group is `<nodeID>-<property>-<value>`.
+* Values can be integer, float, or string.
+* Filenames may end with counters like `_00001` or `_00001_`, which must be **ignored** when extracting values.
+
+Example:
+```
+78-steps-5--78-cfg-1_0_00001_.png → steps=5, cfg=1.0
+```
+
+---
+
+## Workflow JSON Expectations
+
+* The file must contain a `nodes` list or dictionary.
+* Each node may include:
+  - `"title"` – preferred for labels,
+  - `"label"` – second priority,
+  - `"type"` – fallback if neither above is present.
+
+---
+
+## HTML Viewer Features
+
+* Detects **N dimensions** dynamically (no fixed limit).
+* Renders one **slider per dimension** with:
+  - a **lock checkbox** (toggles slider interactivity),
+  - a **right-aligned label** formatted as `NodeTitle:NodeId:Property`,
+  - **width scaling**: more unique values → wider slider,
+  - **value bubble** above slider showing current value.
+* Displays the **active image** on a `<canvas>` that updates instantly on slider change.
+* Shows the **current filename** below sliders:
+  - Small font, ~0.7 opacity, not bold.
+  - Clickable link that opens the image in a new tab.
+* Right-clicking the canvas also opens the current image in a new tab.
+* Includes a **Day/Night theme toggle** that:
+  - Defaults to OS color scheme,
+  - Persists user preference via `localStorage`.
+* Dynamically caps canvas height to maximize visibility and avoid scrolling.
+
+---
+
+## Lazy-Load Mode (`--lazy-load`)
+
+### Behavior
+When enabled, images are **not embedded** as base64 data URIs inside the HTML file.  
+Instead:
+- The generated HTML references `file://` URIs pointing to the source images on disk.
+- Images are loaded **on demand** as sliders move.
+- A **client-side LRU cache** (up to 64 images by default) keeps recent images in memory for fast switching.
+
+### Advantages
+- Greatly reduces HTML size (from hundreds of MBs to a few KBs).
+- Allows exploration of large datasets (e.g., >1000 images) without browser memory exhaustion.
+
+### Limitations
+- The HTML file is **not fully self-contained**.
+- PNG files must remain accessible on disk in their original directory.
+
+### Default (No Flag)
+Without `--lazy-load`, images are **base64-embedded**, making the HTML completely portable and offline-friendly.
+
+---
+
+## Script Implementation Details
+
+* Pure Python 3 using only standard libraries.
+* Validates input paths and fails with clear errors if invalid.
+* Detects numeric vs string dimension types.
+* Automatically determines ordering for numeric values.
+* Produces the final HTML using `string.Template` substitution (no f-strings), ensuring braces `{}` in JS/CSS remain intact.
+
+---
+
+## Output
+A **single HTML file** implementing all interactive functionality described above.  
+The file works offline in embedded mode or live-from-disk mode when `--lazy-load` is enabled.
+
+---
+
+## Example Outputs
+
+**Self-contained mode (default):**
+- `output.html` size may reach hundreds of MB for many images.
+- Fully portable and works offline.
+
+**Lazy-load mode:**
+- `output.html` typically under 1 MB.
+- Loads PNGs directly from disk via `file://` paths.
+- Requires keeping the image directory intact for viewing.
+
+---
+
+## Summary of Key Change
+
+| Mode | Flag | Image Handling | File Size | Portability | Notes |
+|------|------|----------------|------------|--------------|-------|
+| **Embedded (default)** | *(none)* | Base64 inlined | Large | Fully self-contained | Works offline, heavy for >500 images |
+| **Lazy-load** | `--lazy-load` | Loads from disk as needed | Tiny | Depends on PNG directory | Ideal for large datasets |
+
+---
+
+End of specification.

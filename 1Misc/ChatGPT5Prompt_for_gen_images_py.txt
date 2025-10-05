@@ -1,0 +1,127 @@
+You are ChatGPT 5. Generate a single Python 3 script named gen_images_7d.py that drives ComfyUI via HTTP by expanding a workflow into a Cartesian product of parameter sets and enqueuing each permutation. The script must be stdlib-only (no third-party packages) and Python 3.8+ compatible.
+
+## Functional spec (implement exactly)
+
+1) CLI & inputs
+- Use argparse. Provide these options (exact names and behaviors):
+  - --basepath (required): absolute path to the project root. Must contain a "params" subfolder. Validate it is absolute; error if missing.
+  - --workflow_api (required): path to an API-format ComfyUI workflow JSON (the object you POST to /prompt). Accept any of these shapes and extract the prompt dict:
+      { "<id>": {...}, ... }  OR  { "nodes": {...} }  OR  { "prompt": {...} }
+    If the file isn’t API-format, fail with a clear error.
+  - --server (default http://127.0.0.1:8188)
+  - --client-id (optional; default is a random UUID4)
+  - Seven axes: s, t, u, v, x, y, z
+    For each axis, accept ONE argument:
+      --<axis> "<nodeId>-<input>.txt"
+    Behavior for each axis argument:
+      • The string must match "<nodeId>-<input>.txt" where nodeId is digits and input is [A-Za-z0-9_]+.  
+      • The corresponding values file is read from "<basepath>/params/<nodeId>-<input>.txt".  
+      • That binds the axis to that single node input target.
+  - --as (repeatable): type for each provided axis, consumed in the order the axes are provided (s,t,u,v,x,y,z). Allowed values: auto, int, float, string (also accept str). If an axis has no corresponding --as, default to auto for that axis. Examples (both valid):  
+      --t 31-steps.txt --as int --u 31-cfg.txt --as float  
+      --t 31-steps.txt --u 31-cfg.txt --as int --as float
+  - --save-target (required): exactly one, in the form "<nodeId>:filename_prefix.txt". The script must read "<basepath>/params/<nodeId>-filename_prefix.txt" and use its trimmed content as the *folder token* (e.g., "VisualizerTest1"). This script must set filename_prefix only on that single SaveImage nodeId.
+
+2) IDs only
+- Do not support titles at all. Validate every referenced nodeId exists in the API prompt. Fail fast if not.
+
+3) Axis rules
+- Axes are ordered globally as: s, t, u, v, x, y, z.
+- t and u are REQUIRED axes: each must be provided and must have at least one value in its file. Error out if either is missing.
+- Optional axes (s, v, x, y, z): if an axis is specified, its values file must exist and parse successfully. If an axis is not specified, treat it as having a single value [None] and it does not affect the permutation count.
+- Each axis controls exactly one (nodeId, input) pair, derived from the filename "<nodeId>-<input>.txt".
+- Value parsing per axis:
+  • string/str: use the raw line (after trimming), keep as string.  
+  • int: parse as base-10 int.  
+  • float: parse as float.  
+  • auto (default): try int, then float, else leave as string.
+- Values file format: one value per line; ignore blank lines and lines starting with "#". If after filtering there are zero values, error.
+
+4) Applying values
+- Build the Cartesian product over all seven axes (using value list length 1 with [None] for unused axes). For each permutation:
+  - Deep-copy the base API prompt.
+  - For each axis in order (s,t,u,v,x,y,z): if the axis value is not None, set prompt[nodeId]["inputs"][input] = value on that axis’s target. This must replace any existing link so the literal wins.
+  - If multiple axes target the same (nodeId,input), the later axis in the global order overrides earlier ones (final value wins).
+
+5) Filename prefix rule (IMPORTANT)
+- For each permutation, compute a filename_prefix string and set it ONLY on the SaveImage node specified by --save-target.
+- Prefix must be:
+    "<folder_token>/<segments>"
+  where:
+  - folder_token is the exact text loaded from "<basepath>/params/<saveNodeId>-filename_prefix.txt".
+  - segments is built from the final values for each distinct (nodeId, input) pair across all axes, in first-appearance order by axis (s..z), after applying override rules.
+  - Segment format: "<nodeId>-<property>-<value>"
+  - Join segments with "--" (two hyphens).
+  - Value formatting:
+      • If value is float, always include a decimal point (e.g., 1.0 not 1). Then replace '.' with '_'. Examples: 1.5 -> 1_5, 1.0 -> 1_0.  
+      • If value is int or string, convert to str and replace '.' with '_'.
+- Do not append an extension in the prefix. ComfyUI appends "_00001.png", etc.
+
+6) Images location, cleanup, and resume
+- Images live under: "<basepath>/params/images/<folder_token>"
+- For the planned sweep, compute the complete set of expected output filenames for the first image of each permutation:
+    "<segments>_00001.png"
+- Cleanup step (files only; do not delete subfolders): in "<basepath>/params/images/<folder_token>", remove any files that are not in the expected set.
+- Resume behavior: when enqueuing, skip permutations for which the expected file already exists in that folder. Only enqueue those that are missing.
+- Dry-run: print the planned permutations count, the target images folder, the expected file count, and a few example filenames, then exit without posting.
+
+7) Posting
+- POST to:  POST {server}/prompt
+  Payload JSON:
+    { "prompt": <prompt_dict>, "client_id": "<uuid>" }
+- On success: print a concise “[OK] … -> queued (prefix=<folder_token>/<segments>)”.
+- Use a persistent client_id (either from --client-id or a generated UUID4) for the entire run.
+
+8) Logging and errors
+- --verbose: log each axis file read (path, type, value count), each (nodeId:input <- value) assignment, the folder token path used, and cleanup/resume actions (removed files, skipped files).
+- Fail fast with clear messages for:
+  • Non-absolute --basepath  
+  • Missing "<basepath>/params"  
+  • Missing or invalid --workflow_api (and non-API JSON shape)  
+  • Bad axis spec string (not "<nodeId>-<input>.txt")  
+  • Node id not found in API prompt  
+  • Missing values file, parse errors, or empty file for a specified axis  
+  • Missing required axes t or u  
+  • Invalid --as type token  
+  • Bad --save-target format or missing "<basepath>/params/<nodeId>-filename_prefix.txt"
+
+9) Implementation constraints & structure
+- Stdlib only: argparse, json, itertools, copy, uuid, urllib.request, os, re, sys.
+- Keep the code organized with helpers named approximately:
+  load_api_prompt, parse_axis_spec, read_values_file, coerce_token,
+  set_input_literal, post_prompt,
+  safe_value_str, build_segments,
+  cleanup_folder (and small utilities for path handling).
+- Do not implement titles. IDs only. Do not touch any SaveImage except the one from --save-target.
+
+10) Output format requirements
+- Return the ENTIRE script as a single code block.
+- After the code block, include a minimal “Usage” section (plain text) with two examples:
+  A) Required axes only (t/u) with inline --as on each line (Windows CMD with ^)  
+  B) Multi-axis example (PowerShell with backticks) that demonstrates resume/cleanup behavior
+- Do not include extra commentary beyond the code and the Usage section.
+
+## Behavior recap examples (for the script’s Usage section)
+- Windows CMD (note caret ^ must be last character on line):
+  python gen_images_7d.py ^
+    --basepath "Z:\ABS\Project" ^
+    --workflow_api "Z:\ABS\Project\API_Flow.json" ^
+    --server http://192.168.50.16:8188 ^
+    --t 31-steps.txt --as int ^
+    --u 31-cfg.txt   --as float ^
+    --save-target 9:filename_prefix.txt ^
+    --verbose
+
+- PowerShell (no trailing spaces after backtick):
+  python gen_images_7d.py `
+    --basepath "Z:\ABS\Project" `
+    --workflow_api "Z:\ABS\Project\API_Flow.json" `
+    --server http://192.168.50.16:8188 `
+    --t 31-steps.txt `
+    --u 31-cfg.txt `
+    --as int `
+    --as float `
+    --save-target 9:filename_prefix.txt `
+    --verbose
+
+The script must plan permutations (including None for omitted axes), clean "<basepath>/params/images/<folder_token>" of files not in the expected set of "<segments>_00001.png", skip already-present permutations, and enqueue only the missing ones. It must set filename_prefix to "<folder_token>/<segments>" solely on the SaveImage node given by --save-target, never modifying any other nodes’ filename_prefix.

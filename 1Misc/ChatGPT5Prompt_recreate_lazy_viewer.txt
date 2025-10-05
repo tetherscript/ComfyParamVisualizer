@@ -1,0 +1,171 @@
+CHATGPT5 PROMPT: RECREATE "make_aligned_viewer_lazy_only.py"
+
+Goal
+-----
+Generate a single Python script that builds an interactive HTML viewer for ComfyUI image grids where the selected image filename is derived from slider positions. The script MUST match the behavior, structure, and details described below exactly. Output only one Python file with the exact name: make_aligned_viewer_lazy_only.py
+
+High-level behavior
+-------------------
+- Read two inputs and one output path from the CLI:
+  1) image_dir: absolute path to a folder containing PNGs.
+  2) workflow: absolute path to a ComfyUI workflow JSON (a normal UI save that contains nodes with ids and titles).
+  3) -o/--output: absolute path to the HTML file to write.
+- Parse every .png in image_dir. Each filename encodes a tuple of dimension values. Use those to generate sliders. Moving the sliders picks a filename; the image is loaded and drawn to a canvas.
+- The HTML uses a dark/light theme toggle and a minimalist layout.
+- IMPORTANT: The viewer is LAZY-LOAD ONLY. Do NOT embed image bytes. Do NOT provide any option to inline/base64 images. Images are loaded from file:// URLs at view time.
+- Remove any "mode" line from the HTML. Do not display "Mode: ..." anywhere.
+
+Implementation rules
+--------------------
+- Python 3 standard library only.
+- Name the produced file exactly make_aligned_viewer_lazy_only.py with a Unix shebang line.
+- Use argparse, pathlib.Path, json, re, sys, string.Template, urllib.parse.
+- Resolve all paths (Path(...).resolve()). Exit with a nonzero message if image_dir is missing or workflow does not exist.
+- Do not add any additional CLI flags besides those specified.
+- Do not print extraneous text beyond a short success note indicating the output HTML path and that the viewer uses lazy-load only.
+
+Filename parsing
+----------------
+- Consider only files with extension .png (case sensitive comparison is acceptable).
+- The filename stem is split on the literal delimiter "--" to get ordered dimension segments. Every file must have the SAME number of segments and the SAME (node_id, property) signature across files.
+- Each segment must be exactly: "<node_id>-<prop>-<value_token>"
+  - Example: "123-sampler_name-euler_ancestral"
+- Validate node_id is decimal digits only; prop must match [A-Za-z0-9_]+.
+- value_token cleanup:
+  - First, strip a trailing counter suffix if present: pattern matches "_00001" or "_00001_" or generally any "_<digits>" optionally followed by an underscore. Implement by regex: r"^(.*?)(_+\d+_?)$"; if it matches and group(1) nonempty, keep group(1).
+  - After stripping, try to interpret numeric: replace "_" with "." to produce a dotted string, then float(...) to see if it is numeric. If numeric, record a numeric value and display string equal to the dotted string (e.g., "3_5" -> numeric 3.5, display "3.5").
+  - If not numeric, validate value_token with [A-Za-z0-9_]+; for display use the raw token (not dotted). Key for dictionary lookups is always the token string BEFORE display conversion (after counter stripping).
+- Build for each dimension: a dict of distinct keys -> { num: float or None, disp: string }
+- Sort order per dimension:
+  - If all keys are numeric: sort by (num, key) ascending.
+  - Else: sort lexicographically by key.
+- Build dim_values: for each dimension index i, an ordered list of objects { "k": key, "d": display } in the computed order.
+- Build lookup: map of "k0|k1|...|kN" to the exact filename including extension.
+
+Workflow titles
+---------------
+- Parse the workflow JSON and build a mapping of node id -> title to label sliders. Accept both of these shapes:
+  1) {"nodes": {id: node, ...}} or {"nodes": [node, ...]}
+  2) [node, ...]
+- Node label pick order: node.title or node.label or node.type or "Node <id>".
+- For each dimension signature element (node_id, prop), create a label string "Title:id:prop".
+- Compute label_em as: max(8.0, min(60.0, max_label_len * 0.62)) where max_label_len is the maximum label string length over all dimensions.
+
+URI building
+------------
+- For each PNG filename, compute a file:// URL safe for spaces and Windows drive letters by using Path(file).as_uri() and then urlsplit/unsplit with quote/quote_plus on path, query, and fragment. Store in image_urls dict: { filename: file_uri }.
+
+Meta payload
+------------
+- Create a JSON object embedded in the HTML as a JS constant named "data". Exact keys:
+  - dim_values: array as defined above
+  - lookup: object mapping joined keys to filename
+  - dim_labels: array of "Title:id:prop"
+  - label_em: number
+  - img_dir: string (absolute path)
+  - workflow_json: string (absolute path)
+  - lazy: true
+  - image_urls: object mapping filename -> file:// URL
+
+HTML structure (must match)
+---------------------------
+- Use string.Template to render the HTML exactly like this structure:
+  - Head:
+    - <meta charset="UTF-8">
+    - <title>ComfyUI Dimension Viewer</title>
+    - CSS variables and rules as described below.
+  - Body:
+    <div class="container">
+      <div class="header">
+        <h1>ComfyUI Dimension Viewer</h1>
+        <button id="themeToggle" class="toggle" type="button">Theme</button>
+      </div>
+      <div class="meta">
+        <div>Images: ${img_dir}</div>
+        <div>Workflow: ${workflow_json}</div>
+      </div>
+      <div id="sliders"></div>
+      <div id="filename"><a id="filenameLink" href="#" target="_blank"></a></div>
+      <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
+    </div>
+    <script> ... JS code ... </script>
+- Do NOT include any "Mode:" line in the meta section.
+- CSS (same selectors and properties):
+  :root { --bg:#fff; --fg:#111; --muted:#666; --border:#cfcfcf; --accent:#7a7afe; }
+  :root[data-theme="dark"]{ --bg:#0d0f13; --fg:#e5e7eb; --muted:#9aa0a6; --border:#2a2f3a; --accent:#7aa2ff; }
+  body{margin:0;font-family:sans-serif;background:var(--bg);color:var(--fg);}
+  .container{max-width:980px;margin:12px auto;padding:0 12px;}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  h1{margin:0;font-size:1.05rem;font-weight:600;}
+  .meta{font-size:0.85rem;color:var(--muted);margin-bottom:8px;}
+  .toggle{border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:8px;padding:4px 8px;cursor:pointer;}
+  #sliders{border:1px solid var(--border);border-radius:8px;padding:8px 10px 2px 10px;background:rgba(127,127,127,0.03);}
+  .slider-row{display:grid;grid-template-columns:auto ${label_em}em 1fr;align-items:center;gap:10px;margin:10px 0;}
+  .label-col{justify-self:end;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .slider-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .value-bubble{font-size:0.85rem;color:var(--muted);}
+  #filename{text-align:center;font-size:0.85rem;opacity:0.7;margin:8px 0 6px 0;word-break:break-all;}
+  #filename a{color:inherit;text-decoration:underline;}
+  #canvas-wrap{display:flex;justify-content:center;padding-bottom:10px;}
+  canvas{border:1px solid var(--border);background:#000;max-width:95vw;height:auto;}
+  input[type=range]{width:240px;height:26px;background:transparent;}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:rgba(127,127,127,0.35);border-radius:6px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);border:1px solid rgba(0,0,0,0.2);margin-top:-6px;}
+  input[type=range]:hover::-webkit-slider-thumb{width:20px;height:20px;margin-top:-7px;}
+  input[type=range]::-moz-range-track{height:6px;background:rgba(127,127,127,0.35);border-radius:6px;}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:1px solid rgba(0,0,0,0.2);}
+  input[type=range]:hover::-moz-range-thumb{width:20px;height:20px;}
+
+JavaScript requirements
+-----------------------
+- Initialize theme based on localStorage key "viewer_theme" or prefers-color-scheme. Button toggles and persists "light"/"dark".
+- data is set to the embedded meta JSON object.
+- dims = data.dim_values.length
+- Maintain arrays curIdx[dims] and locked[dims], initialized to 0 and false.
+- Elements: canvas (id "canvas"), context 2d, filenameLink (id "filenameLink"), sliders root (id "sliders").
+- Implement a simple LRU cache for images with capacity 64 using a Map called map and a wrapper object imgs with has/get/set. When evicting, clear oldImg.src = "" before dropping.
+- After loading a first arbitrary image (take the first filename from data.lookup values), set canvas.width/height to image natural size; failure fallback is 512x512. Then build UI, size canvas, update image, set resize listener.
+- Slider rows: for each dimension
+  - A checkbox at column 1 to lock the slider (disables input).
+  - Column 2: a right-aligned label div with text data.dim_labels[i].
+  - Column 3: a vertical wrapper containing a bubble div showing the display text for the current value, and a range input.
+  - Slider properties: min=0, max=len(values)-1, step=1, value=0. Width uses sliderWidth(n) where n = number of options.
+- sliderWidth(n): return Math.min(680, Math.max(140, 140 + (n-2)*36)).
+- Slider oninput: if not locked, update curIdx[i], update bubble text, call updateImage().
+- Checkbox onchange: set locked[i] and enable/disable the slider.
+- key(): join selected keys with "|".
+- updateImage():
+  - Find filename via data.lookup[key()]. If absent, set filename link text to "No match", remove href, and clear currentUrl; return.
+  - Get URL from data.image_urls[fname].
+  - If cached image exists and complete, draw it immediately.
+  - Else create new Image(), set onload to cache and draw, onerror to set link text to "Failed to load: <fname>". Set src to URL.
+- drawAndLink(im, url, fname): clear canvas, draw image at 0,0; set currentUrl=url; set filenameLink.textContent=fname; set filenameLink.href=url; set filenameLink.download=fname.
+- Right-click (contextmenu) on canvas opens currentUrl in new tab with noopener,noreferrer; prevent default menu.
+- resizeCanvas(): set canvas.style.maxHeight based on viewport height minus the bottom of the sliders block (at least 120px).
+
+HTML templating
+---------------
+- Use string.Template with placeholders ${img_dir}, ${workflow_json}, ${label_em}, ${meta_json}.
+- Substitute meta_json with json.dumps(meta).
+
+Lazy-load only
+--------------
+- Do NOT include any code paths to base64-embed images.
+- The meta object includes image_urls for all filenames.
+- The printed CLI note should say the viewer uses lazy-load only and that PNGs must remain in place for the HTML to display them.
+
+CLI
+---
+Example:
+python make_aligned_viewer_lazy_only.py "C:/path/to/images" "C:/path/to/workflow.json" -o "C:/path/to/output.html"
+
+Final output requirements
+-------------------------
+- Output must be EXACTLY one Python file named make_aligned_viewer_lazy_only.py.
+- Include shebang and if __name__ == "__main__": main()
+- Keep comments brief and functional.
+- No extra explanations before or after the code. Just the code.
+- Ensure consistent variable names: parse_args, strip_counter, parse_dimension_segment, parse_filename, load_node_titles, to_file_uri, main.
+- Use the exact CSS, DOM structure, event handlers, LRU capacity (64), and sliderWidth formula specified above.
+- Do not add the "Mode: Lazy-load images on demand" line anywhere.
+- The viewer must function when opened from disk in a modern Chromium-based browser and Firefox.
