@@ -1,6 +1,7 @@
 # ComfyParamVisualizer
 
-Exploring the workflow parameters of 1584 images.
+Which workflow parameter combination is best?
+
 https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 
 ![view_grid1](https://github.com/user-attachments/assets/f4345a6a-4d20-4c17-8dac-824a0ad867dc)
@@ -24,7 +25,7 @@ With this in mind, ComfyParamVisualizer was created.
 - usable with any ComfyUI installation (no sage, with sage, portable, not portable, Windows, Linux).
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
 
-To use it, you
+To use it, you (ok, this is simplified a bit)
 - edit and save your workflow in the ComfyUI editor like usual.  You can close the UI if you want, just leave ComfyUI running in the background.
 - define the workflow parameters you want to test ex 'let's test KSampler steps vs cfg'.
 - run a python script that calls the built-in ComfyUI webserver. This will generate images based on all combinations of the parameters you provided.  Got 4 steps and 3 cfgs? You going to get 12 images.  This can be huge if you have the time - I have done over 4000 images in one image generation call, gave me time to mow the lawn and wash the car.
