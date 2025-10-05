@@ -6,6 +6,9 @@ https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 
 ![view_grid1](https://github.com/user-attachments/assets/f4345a6a-4d20-4c17-8dac-824a0ad867dc)
 
+Note: You will need to edit the .bat files because they have absolute paths.
+Note: The SimpleImageDemo includes 12 generated images, but the generated .html files have absolute paths, so you'll need to recreate them with the scripts.
+
 ## The problem
 So you have ComfyUI and want to generate an image.  There could be 1000 different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
 
