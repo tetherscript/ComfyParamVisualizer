@@ -103,6 +103,8 @@ Grab a copy of this repo.
       /images *copy the generated images here before creating the viewer
 ```
 
+*For this example, we will modify the contents /SimpleImageDemo folder.*
+
 ## 2. In ComfyUI Editor
 Go to the settings, search for 'node ID badge Mode' - set to Show all.  Now each node will show it's nodeid, and you'll need this because you'll refer to params as nodeid:paramname, like 3:steps or 25:strength.
 <img width="911" height="182" alt="image" src="https://github.com/user-attachments/assets/8a5e9217-64dc-487d-b017-091c255338c0" />
@@ -117,7 +119,7 @@ We'll refer to the node and parameter pairs as '3-cfg' (in the param and batch f
 
 It even shows up as '3-cfg-8_0' in the image filename ```3-cfg-8_0--3-steps-30_00001_.png```. That image has a KSampler nodeid 3 with a cfg of 8.0. Note that all the params you are testing are embedded in the filename. 
 
-Now save the workflow AND the API version of it.  Ex: running ComfyUI Embedded on Windows:
+Now copy the workflow json file AND the API version of it to your /SimpleImage1 folder.  Ex: running ComfyUI Embedded on Windows:
 - Go to File/SaveAs to save the workflow. Call it 'SimpleImage1'.  It will save to 'ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\user\default\workflows' as 'simple_image.json'.  This will be used when the html viewer page is created.
 - Go to the File/Export(API) and name it simple_image_api.  It will save it to your download folder (on Windows anyways) as 'simple_image_api.json'. This will be used when the image generation request is sent to the ComfyUI built-in webserver.
 
