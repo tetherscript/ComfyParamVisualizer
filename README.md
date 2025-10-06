@@ -146,15 +146,11 @@ We need to tell it exactly which node property values to use:
 50
 ```
 
-- Go to \SimpleImageDemo\params folder and edit:
+- Nodeid 9 is the Save Image node, and we'll use that to specify the /output/subfolder in which the generated images will be placed.  Go to \SimpleImageDemo\params folder and edit:
 9-filename_prefix.txt
 ```
 SampleImageDemo
 ```
-This specifies the /output/subfolder in which the generated images will be placed.
-
-
-
 Now edit the image generation batch file to reflect YOUR file paths, server address and port and config files.
 - Go to \SimpleImageDemo folder and edit:
 0 - gen_images.bat
