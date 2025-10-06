@@ -21,6 +21,9 @@ XY Plot custom nodes exist that can help understand, and perhaps discover the be
 
 In a perfect world with infinite GPU speed, we could adjust parameters and instantly see the resulting image.  But alas, no infinite GPU.
 
+> [!WARNING]
+> Review the content of the python scripts so you are comfortable with running them in your environment. You can create new scripts from scratch with the included ChatGPT prompts, and tweak them to suit your needs.
+
 ## A Solution
 
 With this in mind, ComfyParamVisualizer was created. 
@@ -41,10 +44,7 @@ To use it, you (ok, this is simplified a bit)
 That's it! Have fun.
 
 > [!TIP]
-> You can use it on up to 6 dimensions in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
-
-SCRIPTS, YOU SAY?  SECURITY!
-- Yes, there are 3 python scripts and some batch files to call them.  And you are right to question the security aspects of this.  Peruse the scripts, run them sandboxed, whatever helps.  I have included the ChatGPT5 prompts to recreate the entire functionality.  I suggest using these prompts to explore the specifications and tweak these scripts just as you need them.
+> You can use it on up to 6 dimensions (t,u,v,w,x,y) in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
 
 # DETAILED INSTRUCTIONS
 
