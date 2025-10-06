@@ -66,7 +66,15 @@ Go to the settings, search for 'node ID badge Mode' - set to Show all.  Now each
 To make sure the workflow is configured correctly, run the workflow and view the resulting image.  Set the seed 'control after generate' to fixed once you find a good seed, or use seed 156680208700286 which is what i used in the demo.
 <img width="1056" height="512" alt="image" src="https://github.com/user-attachments/assets/e31030a1-f22e-4f77-9db3-67d2a98d15c6" />
 
-We'll refer to the node and parameter pairs like 'c-cfg' (in the param and batch files), and ''3:cfg' (when viewed in the browser).  But they mean the same thing: the cfg property of the node with id=3, which in our case, is a KSampler.  We need to refer by nodeid and not KSampler because you might have multiple ksamplers in a workflow.  Nodeid's are always unique within a workflow.  When we display the nodeid:property in the browser, we'll retrieve the node type or title 'KSampler' and display that as well so you don't need to try to remember what the heck nodeid 3 was referring to.
+We'll refer to the node and parameter pairs as '3-cfg' (in the param and batch files), and ''3:cfg' (when viewed in the browser).  But they mean the same thing: the cfg property of the node with id=3, which in our case, is a KSampler.  We need to refer by nodeid and not KSampler because you might have multiple ksamplers in a workflow.  Nodeid's are always unique within a workflow.  When we display the nodeid:property in the browser, we'll retrieve the node type or title 'KSampler' from your workflow file and display that as well so you don't need to try to remember what the heck nodeid 3 was referring to.
+
+<img width="316" height="119" alt="image" src="https://github.com/user-attachments/assets/cff7652e-af65-48fe-bbb9-1d586a602e82" />
+<img width="281" height="115" alt="image" src="https://github.com/user-attachments/assets/d4414a37-bd85-4fe3-b83e-fa5944df2b72" />
+
+
+  
+
+
 
 
 
