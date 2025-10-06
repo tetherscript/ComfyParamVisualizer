@@ -9,6 +9,9 @@ https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 > [!TIP]
 > You will need to edit the .bat files because they have absolute paths.  The SimpleImageDemo includes 12 generated images, but the generated .html files have absolute paths, so you'll need to recreate them with the scripts. 
 
+> [!TIP]
+> Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
+
 ## The problem
 So you have ComfyUI and want to generate an image.  There could be 1000 different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
 
@@ -265,8 +268,7 @@ Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_alig
 - Move the sliders and see the changes to your image. Enjoy!
 
 Do the same with '2 - gen_axis_grid_viewer.bat' to get a viewer with the optional XY plot.  We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
-
-As an added bonus, you can actually scrub and XY Plot!  Just select the sliders to use as the X and Y axis.
+Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.
 <img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />
 
 
