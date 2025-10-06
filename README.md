@@ -32,7 +32,7 @@ To use it, you (ok, this is simplified a bit)
 - In the ComfyUI editor, set it to display nodeid's, then edit, save and export as API your workflow.  Take note of which nodes and parameters you want to test (ex. KSampler:3:steps, KSampler:3:cfg). 
 - Edit the '0 - gen_images.bat' to reflect the node:parameters you want to test.
 - Edit the \params parameter files that contain the parameter values to be tested, with filenames that reflect the node:paramater pair. The .bat file refers to these param files. Also change the paths in the .bat to reflect where you installed the scripts.
-- Keep comfyui running. You can close the comfyui editor if you want, but it isn't necessary.  Don't touch the ComfyUI if you keep it open.
+- Keep comfyui running. You can close the comfyui editor if you want, but it isn't necessary.  Don't use the ComfyUI editor if you keep it open.
 - Run '0 - gen_images.bat'.  It will show info on which params will be be tested.  Each combination will be sent to the ComfyUI built-in webserver and queued and processed. In the ComfyUI console, you'll see the queueing and processing activity. When the processing has completed (you'll know because it doesn't start processing another).  This is the same idea as when you press the Run button in the ComfyUI editor - it queues and processes a single item.
 - Now that the images have been generated, copy them to the /params/images folder.
 - Run the '1 - gen_aligned_viewer.bat' and/or '2 - gen_axis_grid_viewer.bat' which creates image viewers as .html files in your images folder. 
