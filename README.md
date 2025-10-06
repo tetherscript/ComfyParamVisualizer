@@ -146,6 +146,30 @@ We need to tell it exactly which node property values to use:
 50
 ```
 
+- Go to \SimpleImageDemo\params folder and edit:
+9-filename_prefix.txt
+```
+SampleImageDemo
+```
+This specifies the /output/subfolder in which the generated images will be placed.
+
+
+
+Now edit the image generation batch file to reflect YOUR file paths, server address and port and config files.
+- Go to \SimpleImageDemo folder and edit:
+0 - gen_images.bat
+```
+python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py" ^
+  --workflow_api "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1_API.json" ^
+  --basepath "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo" ^
+  --server http://127.0.0.1:8188 ^
+  --t 3-cfg.txt --as float ^
+  --u 3-steps.txt --as int ^
+  --save-target 9:filename_prefix.txt ^
+  --verbose
+
+  PAUSE
+```
 
 
 
