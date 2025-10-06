@@ -261,6 +261,11 @@ Open that .html file in your browser (dbl-click on it) and you will see:
 
 <img width="817" height="609" alt="image" src="https://github.com/user-attachments/assets/c59de184-867a-459c-9cee-b1ce1a9e23a1" />
 
+- Each NodeNameOrTitle:NodeID:Property has a slider for the values you included in the param .txt file.
+- Check the checkbox on the left to lock the slider so you don't accidentally change the value.
+- Move the sliders and see the changes to your image. Enjoy!
+
+- 
 
 
 
