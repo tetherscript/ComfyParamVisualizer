@@ -238,6 +238,36 @@ Prompt executed in 3.11 seconds
 
 *Don't you wish all image generations were that fast? Omg.*
 
+Now copy the generated images from 
+/output/SimpleImageDemo
+to
+ComfyParamVisualizer\SimpleImageDemo\params\images
+
+<img width="411" height="184" alt="image" src="https://github.com/user-attachments/assets/e6dc8513-e4a3-474f-8b06-e29f713542d0" />
+
+Delete those two repo .html files as those contain bad filepaths.  You'll need to re-create those .html files with the viewer .bat files.
+
+# 4. Generate the viewer html file(s)
+You are almost there! Next, edit paths in the 
+1 - gen_aligned_viewer.bat
+```
+python "W:\ComfyUI\ComfyParamVisualizer\make_aligned_viewer.py" "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\params\images" "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\simple_image1.json" -o "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\params\images\0000_aligned_viewer.html"
+
+PAUSE
+```
+
+Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_aligned_viewer.html
+Open that .html file in your browser (dbl-click on it) and you will see:
+
+<img width="817" height="609" alt="image" src="https://github.com/user-attachments/assets/c59de184-867a-459c-9cee-b1ce1a9e23a1" />
+
+
+
+
+
+
+
+
 
 
 
