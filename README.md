@@ -53,8 +53,17 @@ That's it! Have fun.
 
 # DETAILED INSTRUCTIONS
 
-1) To keep this simple, we'll use the default, simple ComfyUI workflow.  But you could use any workflow, even the crazy huge ones.
-2) 
+To keep this simple, we'll use the default, simple ComfyUI workflow in Templates/Getting Started/Image Generation.  It uses a 2GB model, and is the fastest way to generate images as you get used to setting up the visualizer.  But you could use any workflow, even the crazy huge ones.  In my testing, I use an 10 yr old motherboard/CPU 32GB ram, RTX5060Ti-16GB.  I'm pretty sure my old GTX1080 8GB would work as that is what I used to learn ComfyUI.
+
+<img width="421" height="421" alt="image" src="https://github.com/user-attachments/assets/87983351-c861-471e-972c-e8b2b2902be1" />
+
+## 1. In ComfyUI Editor
+Go to the settings, search for 'node ID badge Mode' - set to Show all.  Now each node will show it's nodeid, and you'll need this because you'll refer to params as nodeid:paramname, like 3:steps or 25:strength.
+<img width="911" height="182" alt="image" src="https://github.com/user-attachments/assets/8a5e9217-64dc-487d-b017-091c255338c0" />
+
+
+- 
+- 
 
 
 
