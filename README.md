@@ -1,6 +1,6 @@
 # ComfyParamVisualizer
 
-Which ComfyUI workflow parameter combination is best?
+Which ComfyUI workflow parameter combination is best?  Use the visualizer to find it.
 
 https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 
