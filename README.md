@@ -2,6 +2,8 @@
 
 Which ComfyUI workflow parameter combination is best?  Use the visualizer to find it.
 
+[![Watch the video](https://img.youtube.com/vi/_5tFXJQIzi4/0.jpg)]([https://www.youtube.com/watch?v=_5tFXJQIzi4](https://youtu.be/8kKi3KPQ8SA))
+
 > [!TIP]
 > The batch files now rely on the relative layout of this repo. As long as you keep the folders together you normally only need to point them at your workflow JSON or tweak the axis/value lists—no more global path surgery.
 
