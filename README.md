@@ -29,13 +29,19 @@ With this in mind, ComfyParamVisualizer was created.
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
 
 To use it, you (ok, this is simplified a bit)
-- edit and save your workflow in the ComfyUI editor like usual.  You can close the UI if you want, just leave ComfyUI running in the background.
-- define the workflow parameters you want to test ex 'let's test KSampler steps vs cfg'.
-- run a python script that calls the built-in ComfyUI webserver. This will generate images based on all combinations of the parameters you provided.  Got 4 steps and 3 cfgs? You going to get 12 images.  This can be huge if you have the time - I have done over 4000 images in one image generation call, gave me time to mow the lawn and wash the car.
-- run another script to display the images in a web browser where you can adjust the workflow pamameters with sliders and see the corresponding image instantly.  Just scrub away on those sliders.
-- or run a different script that allows you to scrub and optionally create an XY plot.
-- You'll be saying 'ohhhh...i get how cfg and steps work now.'
-- You can use it on up to 6 dimensions in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.
+- In the ComfyUI editor, set it to display nodeid's, then edit, save and export as API your workflow.  Take note of which nodes and parameters you want to test (ex. KSampler:3:steps, KSampler:3:cfg). 
+- Edit the '0 - gen_images.bat' to reflect the node:parameters you want to test.
+- Edit the \params paramater files that contain the parameter values to be tested, with filenames that reflect the node:paramater pair. The .bat file refers to these param files. Also change the paths in the .bat to reflect where you installed the scripts.
+- Keep comfyui running. You can close the comfyui editor if you want, but it isn't necessary.  Don't touch the ComfyUI if you keep it open.
+- Run '0 - gen_images.bat'.  It will show info on which params will be be tested.  Each combination will be sent to the ComfyUI built-in webserver and queued and processed. In the ComfyUI console, you'll see the queueing and processing activity. When the processing has completed (you'll know because it doesn't start processing another).  This is the same idea as when you press the Run button in the ComfyUI editor - it queues and processes a single item.
+- Now that the images have been generated, copy them to the /params/images folder.
+- Run the '1 - gen_aligned_viewer.bat' and/or '2 - gen_axis_grid_viewer.bat' which creates image viewers as .html files in your images folder. 
+- Open the .html file in your browser.  You can change the theme (light/dark), lock a slider with the checkbox, and adjust the sliders to see the image that was generated that match the slider settings.  Scrub the sliders back and forth - you'll see how the image changes.
+- The grid_viewer html allows you to scrub the sliders, and also specify a slider to be x and/or y axis to give an XY plot.  You can scrub the other sliders and the plot will update.
+That's it! Have fun.
+
+> [!TIP]
+> You can use it on up to 6 dimensions in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
 
 SCRIPTS, YOU SAY?  SECURITY!
 - Yes, there are 3 python scripts and some batch files to call them.  And you are right to question the security aspects of this.  Peruse the scripts, run them sandboxed, whatever helps.  I have included the ChatGPT5 prompts to recreate the entire functionality.  I suggest using these prompts to explore the specifications and tweak these scripts just as you need them.
