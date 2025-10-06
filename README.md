@@ -274,7 +274,7 @@ Just select the sliders to use as the X and Y axis.  If there were more than two
 
 # 5. Complete
 
-That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all theme workflow parameters affect your images.
+That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all those workflow parameters affect your images.
 
 RussDev
 
