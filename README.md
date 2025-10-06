@@ -272,9 +272,12 @@ Do the same with '2 - gen_axis_grid_viewer.bat' to get a viewer with the optiona
 Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.
 <img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />
 
-# 5. That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all theme workflow parameters affect your images.
+# 5. Complete
+
+That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all theme workflow parameters affect your images.
 
 RussDev
+
 Tetherscript
 
 
