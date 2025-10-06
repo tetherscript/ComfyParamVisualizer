@@ -64,8 +64,8 @@ Grab a copy of this repo.
 
 ```
 /ComfyParamVisualizer
-  gen_images.py - the image generation script.  Do not edit it.
-  make_aligned_viewer.py - the basic html viewer creation script. Do not edit it.
+  gen_images.py - the image generation script.
+  make_aligned_viewer.py - the basic html viewer creation script.
   make_axis_grid_viewer.py - an advanced html viewer creation script that includes an XY Plot.
   /1Misc
     ChatGPT5Prompt_for_gen_images_py.txt - for recreating the image generation script with ChatGPT5.
@@ -83,8 +83,24 @@ Grab a copy of this repo.
     2 - gen_axis_grid_viewer.bat - for creating the XY plot viewer
     simple_image1.json - your workflow file
     simple_image1_API.json - your workflow API file
-  /SimpleImageDemo
-
+    /params
+      3-cfg.txt - param values
+      3-steps.txt - param values
+      3-sampler_name.txt
+      3-scheduler.txt
+      9-filename_prefix.txt - use this to specify an /output/subfolder for the generated images
+      /images *copy the generated images here before creating the viewer
+  /SimpleImageDemo *uses the ksampler steps and cfg with 12 images.
+    0 - gen_images.bat - for generating the images
+    1 - gen_aligned_viewer.bat - for creating the simple viewer
+    2 - gen_axis_grid_viewer.bat - for creating the XY plot viewer
+    simple_image1.json - your workflow file
+    simple_image1_API.json - your workflow API file
+    /params
+      3-cfg.txt - param values
+      3-steps.txt - param values
+      9-filename_prefix.txt - use this to specify an /output/subfolder for the generated images
+      /images *copy the generated images here before creating the viewer
 ```
 
 ## 2. In ComfyUI Editor
