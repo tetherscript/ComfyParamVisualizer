@@ -166,6 +166,35 @@ python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py" ^
 
   PAUSE
 ```
+Now run '0 - gen_images.bat' and you should see 
+```W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo>python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py"   --workflow_api "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1_API.json"   --basepath "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo"   --server http://127.0.0.1:8188   --t 3-cfg.txt --as float   --u 3-steps.txt --as int   --save-target 9:filename_prefix.txt   --verbose
+[INFO] Reading filename_prefix from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\9-filename_prefix.txt
+[INFO] Folder prefix token (from 9-filename_prefix.txt) = 'SampleImageDemo'
+[INFO] Axis t: reading values from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\3-cfg.txt (type=float)
+[INFO] Axis t: 3 values loaded
+[INFO] Axis t -> node 3, input 'cfg', count=3
+[INFO] Axis u: reading values from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\3-steps.txt (type=int)
+[INFO] Axis u: 4 values loaded
+[INFO] Axis u -> node 3, input 'steps', count=4
+Planned permutations: 1 * 3 * 4 * 1 * 1 * 1 * 1 = 12
+[OK]  t=8.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-20)
+[OK]  t=8.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-30)
+[OK]  t=8.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-40)
+[OK]  t=8.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-50)
+[OK]  t=9.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-20)
+[OK]  t=9.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-30)
+[OK]  t=9.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-40)
+[OK]  t=9.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-50)
+[OK]  t=10.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-20)
+[OK]  t=10.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-30)
+[OK]  t=10.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-40)
+[OK]  t=10.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-50)
+Done. Enqueued 12 prompts to http://127.0.0.1:8188. Images folder: W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\images\SampleImageDemo
+
+W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo>PAUSE
+Press any key to continue . . .
+```
+This is good.  You may see 'path not found' kind of errors, so check your paths in the .bat again if that happens.
 
 
 
