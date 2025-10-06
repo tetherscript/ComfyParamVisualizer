@@ -31,7 +31,12 @@ With this in mind, ComfyParamVisualizer was created.
 - usable with any ComfyUI installation (no sage, with sage, portable, not portable, Windows, Linux).
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
 
-To use it, you (ok, this is simplified a bit)
+To use it, you (super-high level overview)
+- In the ComfyUI editor, create and save your workflow.
+- Edit several .bat and param .txt files.
+- Run the .bat files and review your images using the generated .html in your browser.
+
+To use it, you (ok, this is simplified a bit less)
 - In the ComfyUI editor, set it to display nodeid's, then edit, save and export as API your workflow.  Take note of which nodes and parameters you want to test (ex. KSampler:3:steps, KSampler:3:cfg). 
 - Edit the '0 - gen_images.bat' to reflect the node:parameters you want to test.
 - Edit the \params parameter files that contain the parameter values to be tested, with filenames that reflect the node:paramater pair. The .bat file refers to these param files. Also change the paths in the .bat to reflect where you installed the scripts.
