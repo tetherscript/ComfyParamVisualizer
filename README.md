@@ -21,8 +21,8 @@ XY Plot custom nodes exist that can help understand, and perhaps discover the be
 
 In a perfect world with infinite GPU speed, we could adjust parameters and instantly see the resulting image.  But alas, no infinite GPU.
 
-> [!WARNING]
-> Review the content of the python scripts so you are comfortable with running them in your environment. You can create new scripts from scratch with the included ChatGPT prompts, and tweak them to suit your needs.
+> [!SECURITY WARNING]
+> Review the content of the python scripts so you are comfortable with running them in your environment. You can always create new scripts from scratch with the included ChatGPT prompts, and tweak them to suit your needs.
 
 ## A Solution
 
