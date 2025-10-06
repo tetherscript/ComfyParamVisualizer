@@ -60,7 +60,22 @@ We'll test the KSampler:cfg vs KSampler:steps and specify 4 cfgs with 3 steps.  
 <img width="421" height="421" alt="image" src="https://github.com/user-attachments/assets/87983351-c861-471e-972c-e8b2b2902be1" />
 
 ## 1. The Visualizer files and folders
-Grab a copy of this repo.  the /SimpleImageDemo and it's subfolder
+Grab a copy of this repo.  
+
+```
+/ComfyParamVisualizer
+  gen_images.py - the image generation script.  Do not edit it.
+  make_aligned_viewer.py - the basic html viewer script. Do not edit it.
+  make_axis_grid_viewer.py - an advanced html viewer that includes an XY Plot.
+  
+  /1Misc
+    
+  /SimpleImage1
+    *uses the ksampler scheduler_name, sampler, steps and cfg with approx 1500 images.
+    
+  /SimpleImageDemo
+
+```
 
 ## 2. In ComfyUI Editor
 Go to the settings, search for 'node ID badge Mode' - set to Show all.  Now each node will show it's nodeid, and you'll need this because you'll refer to params as nodeid:paramname, like 3:steps or 25:strength.
