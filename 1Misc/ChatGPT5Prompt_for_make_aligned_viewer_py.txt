@@ -1,144 +1,108 @@
-ComfyUI ND HTML Viewer Generator – Updated Specifications
-==========================================================
+Prompt for ChatGPT 5 — Recreate `make_aligned_viewer.py`
+=========================================================
 
-### Goal
-The Python script generates a **self-contained HTML viewer** for exploring a grid of ComfyUI-generated PNG images, where filenames encode multiple parameter dimensions (e.g., cfg, steps, sampler).
+Goal
+----
+Produce a **single stdlib-only Python 3 script** named `make_aligned_viewer.py` that generates the aligned image viewer HTML exactly as documented below. The script must target Python 3.8+, include a Unix shebang, and end with `if __name__ == "__main__": main()`. Output only the code.
 
-### Overview
-Given a folder of `.png` images and a ComfyUI `workflow.json`, the script:
-1. Scans the folder and parses filenames to extract N dimensions.
-2. Reads the ComfyUI workflow to resolve readable node names.
-3. Outputs a **single HTML file** that allows interactive navigation of all combinations of dimensions using sliders.
+Command-Line Interface
+----------------------
+Use `argparse` with optional flags only:
 
----
+| Option        | Default                       | Description |
+|---------------|-------------------------------|-------------|
+| `--images`    | `<base>/params/images`        | Root folder that contains the PNG set. |
+| `--workflow`  | `<base>/simple_image1.json`   | ComfyUI workflow JSON exported from the UI (node metadata). |
+| `-o/--output` | `<images>/0000_aligned_viewer.html` | Destination HTML file. Create parent dirs as needed. |
+| `--base`      | `.`                           | Base directory used to resolve relative paths for the above. |
 
-## Command Line Usage
+All options accept relative paths (resolved against `base`). Emit helpful errors (exit with status 1) when directories/files do not exist or are invalid.
 
-```bash
-python make_viewer.py "C:/path/to/images" "C:/path/to/workflow.json" -o "C:/path/to/output.html" [--lazy-load]
-```
+Accept **legacy positional arguments** for backward compatibility: `[image_dir workflow output]` in that exact order. If any of these positional arguments are provided, they fill the corresponding missing option values. Reject extra positional arguments beyond three.
 
-### Arguments
+Input Validation
+----------------
 
-1. **image_dir** – Absolute path to the folder containing PNG images.
-2. **workflow.json** – Absolute path to the ComfyUI workflow file.
-3. `-o, --output` – Absolute path to the generated HTML output file.
-4. `--lazy-load` – *(New optional flag)*  
-   When present, the HTML page **does not embed base64 image data**.  
-   Instead, it loads PNG files directly from disk as needed when sliders move.
+* Resolve every supplied path via `Path(...).resolve()` before use.
+* `--images` must point to an existing directory.
+* `--workflow` must be a readable JSON file that contains either:
+  * `{ "nodes": { id: node, ... } }`, or
+  * `{ "nodes": [node, ...] }`, or
+  * `[node, ...]`
+* When multiple shapes are possible, always end with a dictionary keyed by node IDs (integers) to node objects. Select node labels by priority: `title`, then `label`, then `type`, else `"Node <id>"`.
 
----
+PNG File Requirements
+---------------------
 
-## Filename Format
+* Consider only files with `.png` extension (case-sensitive is fine).
+* Filenames encode dimensions using `--` as a separator. Each segment must match `<nodeId>-<prop>-<valueToken>`, where:
+  * `nodeId` is decimal digits.
+  * `prop` matches `[A-Za-z0-9_]+`.
+  * `valueToken` may contain underscores.
+* Strip trailing counters such as `_00001` or `_00001_` via regex `r"^(.*?)(_+\d+_?)$"` if group 1 is non-empty.
+* After stripping, replace `_` with `.` to create a dotted representation. If it parses as `float`, treat it as numeric (store both numeric value and display string with the decimal point). Otherwise treat as non-numeric and use the original token for both key and display.
+* All images must share the same dimension count and identical `(nodeId, prop)` signature. If not, exit with an error.
+* Sort dimension values: numeric dimensions by `(numeric_value, key)`; non-numeric lexicographically. Build:
+  * `dim_values`: ordered list per dimension of `{ "k": key, "d": display }`.
+  * `lookup`: map `"k0|k1|...|kN"` → `filename` (with extension).
 
-Each image filename encodes dimension values using this pattern:
+HTML/JS Output Requirements
+---------------------------
 
-```
-<nodeID>-<property>-<value>--<nodeID>-<property>-<value>... .png
-```
+* Always generate **lazy-load** HTML—never embed base64 images.
+* Generate relative URLs: compute `image_urls` as paths from the output directory to each PNG (POSIX separators). Do **not** use `file://`.
+* The HTML `<title>` and header `<h1>` must read **"ComfyParamVisualizer"**.
+* Theme toggle (`Theme` button) persists in `localStorage` under key `"viewer_theme"`. Respect system preferences on first load.
+* UI layout:
+  * Container width max 980px, centered with modest padding.
+  * Each dimension renders a slider row: `[lock checkbox][label right-aligned][value bubble + range input]`.
+  * Slider labels use the format `"Title:nodeId:property"`.
+  * Value bubble shows the current display value (`dim_values[i][index]["d"]`).
+  * Slider width scales with option count: `sliderWidth(n) = min(680, max(140, 140+(n-2)*36))`.
+  * Range inputs:
+    - Base width 240px, track height 6px, accent color from CSS variable.
+    - Thumb is a 24px circle (26px on hover) to improve mouse targeting.
+  * Include a filename section under the sliders showing the current PNG as a clickable link.
+  * Viewer canvas renders the image; contextmenu on canvas should open the current PNG in a new tab (`window.open`) without altering the page state.
+  * Maintain a 64-image LRU cache on the client to speed up switching.
+  * Resize listener keeps the canvas height within the viewport.
 
-### Rules
-* Use `_` instead of `.` in numeric values (e.g., `1_5` → 1.5).
-* `--` separates dimension groups.
-* Each group is `<nodeID>-<property>-<value>`.
-* Values can be integer, float, or string.
-* Filenames may end with counters like `_00001` or `_00001_`, which must be **ignored** when extracting values.
+* JavaScript flow:
+  * Preload nodes/dimensions from `meta_json`.
+  * Load one sample image to set canvas dimensions; fall back to 512×512 if loading fails.
+  * Build sliders dynamically with lock checkboxes (disabled slider when locked).
+  * Track the current index array (`curIdx`) and locked state array (`locked`).
+  * `updateImage()` should change the canvas and filename link only when the actual filename changes; reuse cached Image instances when possible.
+  * Right-click on the canvas opens `currentUrl` in a new tab (if available).
 
-Example:
-```
-78-steps-5--78-cfg-1_0_00001_.png → steps=5, cfg=1.0
-```
+* CSS & Styling:
+  * Use CSS variables for theme colors (light/dark); ensure all backgrounds, borders, and text respect them.
+  * Metadata row (`.meta`) remains but is empty (no absolute path text).
+  * Increase slider thumb size as specified for better usability.
 
----
+Implementation Constraints
+--------------------------
 
-## Workflow JSON Expectations
+* Import only: `argparse`, `json`, `re`, `os`, `sys`, `uuid` (if needed, though current script doesn’t), `pathlib.Path`, `string.Template`.
+* Use `string.Template` for HTML—protect braces in JS/CSS by doubling or using `$` placeholders properly.
+* When writing the HTML:
+  * Ensure parent directories for `--output` exist (`mkdir(parents=True, exist_ok=True)`).
+  * After successful write, print:
+    1. `Generated HTML: <absolute_output_path>`
+    2. `Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.`
+* On any validation or runtime error, print a descriptive message to `stderr` and exit with status 1.
 
-* The file must contain a `nodes` list or dictionary.
-* Each node may include:
-  - `"title"` – preferred for labels,
-  - `"label"` – second priority,
-  - `"type"` – fallback if neither above is present.
+Summary of Must-Match Behaviors
+-------------------------------
 
----
+1. CLI defaults (`--images`, `--workflow`, `--output`, `--base`) must mirror the table above.
+2. Legacy positional arguments are honored exactly once, in order, and capped at three entries.
+3. All image links inside the HTML are relative to the output file’s directory.
+4. The header/title show “ComfyParamVisualizer.”
+5. Slider thumb styling uses 24 px base / 26 px hover dimensions.
+6. The generated HTML contains no absolute host paths.
+7. The script is stdlib-only and structurally mirrors the functions outlined (`parse_args`, `strip_counter`, `parse_dimension_segment`, `parse_filename`, `load_node_titles`, `relpath_for_html`, `main`).
 
-## HTML Viewer Features
-
-* Detects **N dimensions** dynamically (no fixed limit).
-* Renders one **slider per dimension** with:
-  - a **lock checkbox** (toggles slider interactivity),
-  - a **right-aligned label** formatted as `NodeTitle:NodeId:Property`,
-  - **width scaling**: more unique values → wider slider,
-  - **value bubble** above slider showing current value.
-* Displays the **active image** on a `<canvas>` that updates instantly on slider change.
-* Shows the **current filename** below sliders:
-  - Small font, ~0.7 opacity, not bold.
-  - Clickable link that opens the image in a new tab.
-* Right-clicking the canvas also opens the current image in a new tab.
-* Includes a **Day/Night theme toggle** that:
-  - Defaults to OS color scheme,
-  - Persists user preference via `localStorage`.
-* Dynamically caps canvas height to maximize visibility and avoid scrolling.
-
----
-
-## Lazy-Load Mode (`--lazy-load`)
-
-### Behavior
-When enabled, images are **not embedded** as base64 data URIs inside the HTML file.  
-Instead:
-- The generated HTML references `file://` URIs pointing to the source images on disk.
-- Images are loaded **on demand** as sliders move.
-- A **client-side LRU cache** (up to 64 images by default) keeps recent images in memory for fast switching.
-
-### Advantages
-- Greatly reduces HTML size (from hundreds of MBs to a few KBs).
-- Allows exploration of large datasets (e.g., >1000 images) without browser memory exhaustion.
-
-### Limitations
-- The HTML file is **not fully self-contained**.
-- PNG files must remain accessible on disk in their original directory.
-
-### Default (No Flag)
-Without `--lazy-load`, images are **base64-embedded**, making the HTML completely portable and offline-friendly.
-
----
-
-## Script Implementation Details
-
-* Pure Python 3 using only standard libraries.
-* Validates input paths and fails with clear errors if invalid.
-* Detects numeric vs string dimension types.
-* Automatically determines ordering for numeric values.
-* Produces the final HTML using `string.Template` substitution (no f-strings), ensuring braces `{}` in JS/CSS remain intact.
-
----
-
-## Output
-A **single HTML file** implementing all interactive functionality described above.  
-The file works offline in embedded mode or live-from-disk mode when `--lazy-load` is enabled.
-
----
-
-## Example Outputs
-
-**Self-contained mode (default):**
-- `output.html` size may reach hundreds of MB for many images.
-- Fully portable and works offline.
-
-**Lazy-load mode:**
-- `output.html` typically under 1 MB.
-- Loads PNGs directly from disk via `file://` paths.
-- Requires keeping the image directory intact for viewing.
-
----
-
-## Summary of Key Change
-
-| Mode | Flag | Image Handling | File Size | Portability | Notes |
-|------|------|----------------|------------|--------------|-------|
-| **Embedded (default)** | *(none)* | Base64 inlined | Large | Fully self-contained | Works offline, heavy for >500 images |
-| **Lazy-load** | `--lazy-load` | Loads from disk as needed | Tiny | Depends on PNG directory | Ideal for large datasets |
-
----
-
-End of specification.
+Deliverable
+-----------
+Return only the Python source code for `make_aligned_viewer.py`. No additional commentary or markdown is permitted after the code block.

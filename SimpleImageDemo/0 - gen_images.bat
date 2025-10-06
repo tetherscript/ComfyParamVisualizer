@@ -1,10 +1,15 @@
-python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py" ^
-  --workflow_api "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1_API.json" ^
-  --basepath "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo" ^
+@echo off
+setlocal
+pushd "%~dp0"
+
+python "..\gen_images.py" ^
+  --basepath "." ^
+  --workflow_api "simple_image1_API.json" ^
   --server http://127.0.0.1:8188 ^
-  --t 3-cfg.txt --as float ^
-  --u 3-steps.txt --as int ^
+  --s 3-cfg.txt --as float ^
+  --t 3-steps.txt --as int ^
   --save-target 9:filename_prefix.txt ^
   --verbose
 
-  PAUSE
+popd
+PAUSE

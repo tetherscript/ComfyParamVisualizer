@@ -11,11 +11,11 @@
 #   --save-target 9:filename_prefix.txt
 #     -> reads <basepath>/params/9-filename_prefix.txt for <prefix_text>
 #     -> sets node 9's filename_prefix to:
-#        "<prefix_text>/<nodeId>-<prop>-<val>--<nodeId>-<prop>-<val>..."
+#        "<prefix_text>__<nodeId>-<prop>-<val>--<nodeId>-<prop>-<val>..."
 #        (floats keep a decimal point, then '.' becomes '_')
 #
 # Cleanup + Resume:
-#   Images live in <basepath>/params/images/<prefix_text> (files only; subfolders untouched).
+#   Images live in <basepath>/params/images (files only; subfolders untouched).
 #   For the planned sweep, we compute the complete set of expected filenames:
 #     "<segments>_00001.png" for each permutation (segments as above)
 #   - Remove any files in that folder that are NOT in the expected set.
@@ -33,7 +33,8 @@ import sys
 import uuid
 from urllib import request, error
 
-AXES = ["s", "t", "u", "v", "x", "y", "z"]  # t and u required
+AXES = ["s", "t", "u", "v", "x", "y", "z"]  # s and t required
+DEFAULT_WORKFLOW_FILE = "simple_image1_API.json"
 
 # -------------------- API JSON helpers --------------------
 
@@ -208,7 +209,10 @@ def cleanup_folder(images_dir_for_prefix, expected_names, verbose=False):
     Remove any files in images_dir_for_prefix that are not in expected_names.
     Do not touch subfolders.
     """
-    ensure_dir(images_dir_for_prefix)
+    if not os.path.isdir(images_dir_for_prefix):
+        if verbose:
+            print("[INFO] Images folder %s does not exist; skipping cleanup." % images_dir_for_prefix)
+        return
     current = set(list_files(images_dir_for_prefix))
     for name in sorted(current):
         if name not in expected_names:
@@ -223,12 +227,12 @@ def cleanup_folder(images_dir_for_prefix, expected_names, verbose=False):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="ComfyUI 7D sweeper (IDs only). t and u are required. Values from <basepath>/params/*.txt."
+        description="ComfyUI 7D sweeper (IDs only). s and t are required. Values from <basepath>/params/*.txt."
     )
-    ap.add_argument("--basepath", required=True,
-                    help="Absolute path to the project base folder (must contain 'params' subfolder).")
-    ap.add_argument("--workflow_api", required=True,
-                    help="Path to API-format workflow JSON (exported via 'Save (API format)') to POST to /prompt.")
+    ap.add_argument("--basepath", default=".",
+                    help="Project base folder (default: current working directory). Must contain 'params' subfolder.")
+    ap.add_argument("--workflow_api", default=None,
+                    help="Path to API-format workflow JSON (default: <basepath>/%s)." % DEFAULT_WORKFLOW_FILE)
     ap.add_argument("--server", default="http://127.0.0.1:8188",
                     help="ComfyUI server base URL.")
     ap.add_argument("--client-id", default=None,
@@ -248,44 +252,49 @@ def main():
     # Save target: EXACTLY one, "nodeId:filename_prefix.txt"
     ap.add_argument("--save-target", required=True,
                     help="Target SaveImage node and prefix file spec, e.g. '9:filename_prefix.txt'. "
-                         "Reads '<basepath>/params/9-filename_prefix.txt' for the folder prefix component.")
+                         "Reads '<basepath>/params/9-filename_prefix.txt' for the base filename prefix.")
 
     ap.add_argument("--dry-run", action="store_true", help="Do not POST; just print plan and cleanup actions.")
     ap.add_argument("--verbose", action="store_true", help="Verbose logging.")
 
     args = ap.parse_args()
 
-    # Validate basepath
-    if not os.path.isabs(args.basepath):
-        print("Error: --basepath must be an absolute path.", file=sys.stderr)
-        sys.exit(1)
-    base_params = os.path.join(args.basepath, "params")
+    # Resolve basepath relative to the current working directory
+    basepath = os.path.abspath(args.basepath)
+    base_params = os.path.join(basepath, "params")
     images_root = os.path.join(base_params, "images")
     if not os.path.isdir(base_params):
         print("Error: '%s' does not exist. Expected <basepath>/params." % base_params, file=sys.stderr)
         sys.exit(1)
 
+    # Resolve workflow API path
+    workflow_api_path = args.workflow_api
+    if workflow_api_path is None:
+        workflow_api_path = os.path.join(basepath, DEFAULT_WORKFLOW_FILE)
+    elif not os.path.isabs(workflow_api_path):
+        workflow_api_path = os.path.join(basepath, workflow_api_path)
+
     # Load API workflow
     try:
-        prompt_base = load_api_prompt(args.workflow_api)
+        prompt_base = load_api_prompt(workflow_api_path)
     except Exception as e:
-        print("Error loading --workflow_api: %s" % str(e), file=sys.stderr)
+        print("Error loading workflow API from '%s': %s" % (workflow_api_path, str(e)), file=sys.stderr)
         sys.exit(1)
 
-    # Parse save-target and read prefix folder token
+    # Parse save-target and read prefix token
     try:
         save_node_id, _ = parse_save_target(args.save_target)
         prefix_folder = read_prefix_text(base_params, save_node_id, verbose=args.verbose)
         if args.verbose:
-            print("[INFO] Folder prefix token (from %s-filename_prefix.txt) = '%s'" % (save_node_id, prefix_folder))
+            print("[INFO] Prefix token (from %s-filename_prefix.txt) = '%s'" % (save_node_id, prefix_folder))
     except Exception as e:
         print("Error in --save-target: %s" % str(e), file=sys.stderr)
         sys.exit(1)
 
     # Gather which axes are provided and their types (consumed in axis order)
     provided_axes = [a for a in AXES if getattr(args, a) is not None]
-    # Enforce t and u present
-    for req_axis in ("t", "u"):
+    # Enforce s and t present
+    for req_axis in ("s", "t"):
         if getattr(args, req_axis) is None:
             print("Axis '%s' is required. Provide --%s <nodeId>-<input>.txt" % (req_axis, req_axis), file=sys.stderr)
             sys.exit(1)
@@ -335,7 +344,7 @@ def main():
 
         axis_values[axis] = vals
 
-        if axis in ("t", "u") and not vals:
+        if axis in ("s", "t") and not vals:
             print("Axis %s requires at least one value (file: %s)." % (axis, values_path), file=sys.stderr)
             sys.exit(1)
 
@@ -404,7 +413,8 @@ def main():
             log_parts.append("%s=%s" % (axis, str(val)))
 
         # Build full filename_prefix: "<prefix_folder>/<segments>"
-        filename_prefix = prefix_folder + "/" + segments
+        clean_prefix = prefix_folder.rstrip("/\\")
+        filename_prefix = "%s/%s" % (clean_prefix, segments) if clean_prefix else segments
 
         # Set ONLY on the specified SaveImage node
         try:

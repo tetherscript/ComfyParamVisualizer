@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ComfyUI Axis Grid Viewer</title>
+<title>ComfyParamVisualizer</title>
 <style>
 :root { --bg:#fff; --fg:#111; --muted:#666; --border:#cfcfcf; --accent:#7a7afe; }
 :root[data-theme="dark"]{ --bg:#0d0f13; --fg:#e5e7eb; --muted:#9aa0a6; --border:#2a2f3a; --accent:#7aa2ff; }
@@ -70,12 +70,10 @@ input[type=checkbox]{
 <body>
 <div class="container">
   <div class="header">
-    <h1>ComfyUI Axis Grid Viewer</h1>
+    <h1>ComfyParamVisualizer</h1>
     <button id="themeToggle" class="toggle" type="button">Theme</button>
   </div>
   <div class="meta">
-    <div>Images: W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\images</div>
-    <div>Workflow: W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1.json</div>
   </div>
 
   <div id="sliders"></div>
@@ -99,7 +97,7 @@ input[type=checkbox]{
   };
 })();
 
-const data={"dim_values": [[{"k": "8", "d": "8"}, {"k": "9", "d": "9"}, {"k": "10", "d": "10"}], [{"k": "20", "d": "20"}, {"k": "30", "d": "30"}, {"k": "40", "d": "40"}, {"k": "50", "d": "50"}]], "lookup": {"10|20": "3-cfg-10_0--3-steps-20_00001_.png", "10|30": "3-cfg-10_0--3-steps-30_00001_.png", "10|40": "3-cfg-10_0--3-steps-40_00001_.png", "10|50": "3-cfg-10_0--3-steps-50_00001_.png", "8|20": "3-cfg-8_0--3-steps-20_00001_.png", "8|30": "3-cfg-8_0--3-steps-30_00001_.png", "8|40": "3-cfg-8_0--3-steps-40_00001_.png", "8|50": "3-cfg-8_0--3-steps-50_00001_.png", "9|20": "3-cfg-9_0--3-steps-20_00001_.png", "9|30": "3-cfg-9_0--3-steps-30_00001_.png", "9|40": "3-cfg-9_0--3-steps-40_00001_.png", "9|50": "3-cfg-9_0--3-steps-50_00001_.png"}, "dim_labels": ["KSampler:3:cfg", "KSampler:3:steps"], "label_em": 9.92, "img_dir": "W:\\ComfyUI\\ComfyParamVisualizer\\SimpleImageDemo\\params\\images", "workflow_json": "W:\\ComfyUI\\ComfyParamVisualizer\\SimpleImageDemo\\simple_image1.json", "lazy": true, "image_urls": {"3-cfg-10_0--3-steps-20_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-10_0--3-steps-20_00001_.png", "3-cfg-10_0--3-steps-30_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-10_0--3-steps-30_00001_.png", "3-cfg-10_0--3-steps-40_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-10_0--3-steps-40_00001_.png", "3-cfg-10_0--3-steps-50_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-10_0--3-steps-50_00001_.png", "3-cfg-8_0--3-steps-20_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-8_0--3-steps-20_00001_.png", "3-cfg-8_0--3-steps-30_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-8_0--3-steps-30_00001_.png", "3-cfg-8_0--3-steps-40_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-8_0--3-steps-40_00001_.png", "3-cfg-8_0--3-steps-50_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-8_0--3-steps-50_00001_.png", "3-cfg-9_0--3-steps-20_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-9_0--3-steps-20_00001_.png", "3-cfg-9_0--3-steps-30_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-9_0--3-steps-30_00001_.png", "3-cfg-9_0--3-steps-40_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-9_0--3-steps-40_00001_.png", "3-cfg-9_0--3-steps-50_00001_.png": "file:///W:/ComfyUI/ComfyParamVisualizer/SimpleImageDemo/params/images/3-cfg-9_0--3-steps-50_00001_.png"}};
+const data={"dim_values": [[{"k": "8", "d": "8"}, {"k": "9", "d": "9"}, {"k": "10", "d": "10"}], [{"k": "20", "d": "20"}, {"k": "30", "d": "30"}, {"k": "40", "d": "40"}, {"k": "50", "d": "50"}]], "lookup": {"10|20": "3-cfg-10_0--3-steps-20_00001_.png", "10|30": "3-cfg-10_0--3-steps-30_00001_.png", "10|40": "3-cfg-10_0--3-steps-40_00001_.png", "10|50": "3-cfg-10_0--3-steps-50_00001_.png", "8|20": "3-cfg-8_0--3-steps-20_00001_.png", "8|30": "3-cfg-8_0--3-steps-30_00001_.png", "8|40": "3-cfg-8_0--3-steps-40_00001_.png", "8|50": "3-cfg-8_0--3-steps-50_00001_.png", "9|20": "3-cfg-9_0--3-steps-20_00001_.png", "9|30": "3-cfg-9_0--3-steps-30_00001_.png", "9|40": "3-cfg-9_0--3-steps-40_00001_.png", "9|50": "3-cfg-9_0--3-steps-50_00001_.png"}, "dim_labels": ["KSampler:3:cfg", "KSampler:3:steps"], "label_em": 9.92, "lazy": true, "image_urls": {"3-cfg-10_0--3-steps-20_00001_.png": "3-cfg-10_0--3-steps-20_00001_.png", "3-cfg-10_0--3-steps-30_00001_.png": "3-cfg-10_0--3-steps-30_00001_.png", "3-cfg-10_0--3-steps-40_00001_.png": "3-cfg-10_0--3-steps-40_00001_.png", "3-cfg-10_0--3-steps-50_00001_.png": "3-cfg-10_0--3-steps-50_00001_.png", "3-cfg-8_0--3-steps-20_00001_.png": "3-cfg-8_0--3-steps-20_00001_.png", "3-cfg-8_0--3-steps-30_00001_.png": "3-cfg-8_0--3-steps-30_00001_.png", "3-cfg-8_0--3-steps-40_00001_.png": "3-cfg-8_0--3-steps-40_00001_.png", "3-cfg-8_0--3-steps-50_00001_.png": "3-cfg-8_0--3-steps-50_00001_.png", "3-cfg-9_0--3-steps-20_00001_.png": "3-cfg-9_0--3-steps-20_00001_.png", "3-cfg-9_0--3-steps-30_00001_.png": "3-cfg-9_0--3-steps-30_00001_.png", "3-cfg-9_0--3-steps-40_00001_.png": "3-cfg-9_0--3-steps-40_00001_.png", "3-cfg-9_0--3-steps-50_00001_.png": "3-cfg-9_0--3-steps-50_00001_.png"}};
 const dims=data.dim_values.length;
 const curIdx=new Array(dims).fill(0);
 const locked=new Array(dims).fill(false);

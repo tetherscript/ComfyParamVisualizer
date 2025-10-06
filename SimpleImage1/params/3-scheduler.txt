@@ -1,9 +1,0 @@
-simple
-sgm_uniform
-karras
-exponential
-ddim_uniform
-beta
-normal
-linear_quadratic
-kl_optimal

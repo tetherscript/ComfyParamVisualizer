@@ -10,15 +10,42 @@ import argparse
 from pathlib import Path
 import sys
 from string import Template
-import urllib.parse
+import os
 
 def parse_args():
     p = argparse.ArgumentParser(
         description="ComfyUI compact ND viewer (lazy-load only, with theme toggle)."
     )
-    p.add_argument("image_dir", help="ABSOLUTE path to folder of PNGs")
-    p.add_argument("workflow", help="ABSOLUTE path to ComfyUI workflow.json (normal UI save)")
-    p.add_argument("-o", "--output", required=True, help="ABSOLUTE path to output HTML")
+    p.add_argument(
+        "--images",
+        dest="image_dir",
+        default=None,
+        help="Path to folder of PNGs (default: <base>/params/images).",
+    )
+    p.add_argument(
+        "--workflow",
+        dest="workflow",
+        default=None,
+        help="Path to ComfyUI workflow JSON (default: <base>/simple_image1.json).",
+    )
+    p.add_argument(
+        "-o",
+        "--output",
+        dest="output",
+        default=None,
+        help="Path to output HTML (default: <images>/0000_aligned_viewer.html).",
+    )
+    p.add_argument(
+        "--base",
+        dest="basepath",
+        default=".",
+        help="Base directory for resolving relative paths (default: current directory).",
+    )
+    p.add_argument(
+        "legacy_args",
+        nargs="*",
+        help=argparse.SUPPRESS,
+    )
     return p.parse_args()
 
 def strip_counter(token: str) -> str:
@@ -80,23 +107,48 @@ def load_node_titles(workflow_path: Path):
         return titles
     raise ValueError("Unrecognized workflow JSON format.")
 
-def to_file_uri(p: Path) -> str:
-    # Convert to file:// URI safely (handles Windows drive letters, spaces, etc.)
-    uri = p.as_uri()
-    parts = urllib.parse.urlsplit(uri)
-    return urllib.parse.urlunsplit((
-        parts.scheme,
-        parts.netloc,
-        urllib.parse.quote(parts.path, safe="/:%@+~,;=-._"),
-        urllib.parse.quote_plus(parts.query, safe="=&"),
-        urllib.parse.quote_plus(parts.fragment, safe="")
-    ))
+def relpath_for_html(target: Path, base: Path) -> str:
+    """
+    Return a POSIX-style relative path from base -> target for embedding in HTML/JSON.
+    """
+    rel = os.path.relpath(target, base)
+    return rel.replace("\\", "/")
 
 def main():
     args = parse_args()
-    img_dir = Path(args.image_dir).resolve()
-    wf_path = Path(args.workflow).resolve()
-    out_html = Path(args.output).resolve()
+
+    basepath = Path(args.basepath).resolve()
+    if not basepath.is_dir():
+        sys.exit(f"Base path not found: {basepath}")
+
+    legacy = list(args.legacy_args or [])
+    image_arg = args.image_dir
+    workflow_arg = args.workflow
+    output_arg = args.output
+
+    if legacy:
+        if image_arg is None and len(legacy) >= 1:
+            image_arg = legacy[0]
+        if workflow_arg is None and len(legacy) >= 2:
+            workflow_arg = legacy[1]
+        if output_arg is None and len(legacy) >= 3:
+            output_arg = legacy[2]
+        if len(legacy) > 3:
+            sys.exit("Too many positional arguments supplied.")
+
+    def resolve_path(path_value, default_path):
+        if path_value is None:
+            return default_path
+        p = Path(path_value)
+        if not p.is_absolute():
+            p = basepath / p
+        return p
+
+    img_dir = resolve_path(image_arg, basepath / "params" / "images").resolve()
+    wf_path = resolve_path(workflow_arg, basepath / "simple_image1.json").resolve()
+    out_html = resolve_path(output_arg, img_dir / "0000_aligned_viewer.html").resolve()
+    out_base = out_html.parent
+    out_base.mkdir(parents=True, exist_ok=True)
 
     if not img_dir.is_dir():
         sys.exit(f"Image directory not found: {img_dir}")
@@ -155,14 +207,15 @@ def main():
     label_em = max(8.0, min(60.0, max_label * 0.62))
 
     # Lazy-load only: no base64 embedding
-    image_urls = {fname: to_file_uri(img_dir / fname) for _, fname in images}
+    image_urls = {
+        fname: relpath_for_html(img_dir / fname, out_base)
+        for _, fname in images
+    }
     meta = dict(
         dim_values=dim_values,
         lookup=lookup,
         dim_labels=dim_labels,
         label_em=label_em,
-        img_dir=str(img_dir),
-        workflow_json=str(wf_path),
         lazy=True,
         image_urls=image_urls
     )
@@ -171,7 +224,7 @@ def main():
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ComfyUI Dimension Viewer</title>
+<title>ComfyParamVisualizer</title>
 <style>
 :root { --bg:#fff; --fg:#111; --muted:#666; --border:#cfcfcf; --accent:#7a7afe; }
 :root[data-theme="dark"]{ --bg:#0d0f13; --fg:#e5e7eb; --muted:#9aa0a6; --border:#2a2f3a; --accent:#7aa2ff; }
@@ -198,26 +251,24 @@ input[type=range]{width:240px;height:26px;background:transparent;}
 /* WebKit */
 input[type=range]::-webkit-slider-runnable-track{height:6px;background:rgba(127,127,127,0.35);border-radius:6px;}
 input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;
-  background:var(--accent);border:1px solid rgba(0,0,0,0.2);margin-top:-6px;}
-input[type=range]:hover::-webkit-slider-thumb{width:20px;height:20px;margin-top:-7px;}
+  -webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--accent);border:1px solid rgba(0,0,0,0.25);margin-top:-9px;}
+input[type=range]:hover::-webkit-slider-thumb{width:26px;height:26px;margin-top:-10px;}
 /* Firefox */
 input[type=range]::-moz-range-track{height:6px;background:rgba(127,127,127,0.35);border-radius:6px;}
 input[type=range]::-moz-range-thumb{
-  width:18px;height:18px;border-radius:50%;background:var(--accent);
-  border:1px solid rgba(0,0,0,0.2);}
-input[type=range]:hover::-moz-range-thumb{width:20px;height:20px;}
+  width:24px;height:24px;border-radius:50%;background:var(--accent);
+  border:1px solid rgba(0,0,0,0.25);}
+input[type=range]:hover::-moz-range-thumb{width:26px;height:26px;}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>ComfyUI Dimension Viewer</h1>
+    <h1>ComfyParamVisualizer</h1>
     <button id="themeToggle" class="toggle" type="button">Theme</button>
   </div>
   <div class="meta">
-    <div>Images: ${img_dir}</div>
-    <div>Workflow: ${workflow_json}</div>
   </div>
   <div id="sliders"></div>
   <div id="filename"><a id="filenameLink" href="#" target="_blank"></a></div>
@@ -336,8 +387,6 @@ function resizeCanvas(){
 """)
 
     html = html_template.substitute(
-        img_dir=str(img_dir),
-        workflow_json=str(wf_path),
         label_em=f"{label_em:.1f}",
         meta_json=json.dumps(meta)
     )

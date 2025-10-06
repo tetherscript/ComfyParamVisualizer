@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/1d18e05f-b783-4fb0-a653-8ae5ba53d2eb
 ![view_grid1](https://github.com/user-attachments/assets/f4345a6a-4d20-4c17-8dac-824a0ad867dc)
 
 > [!TIP]
-> You will need to edit the .bat files because they have absolute paths.  The SimpleImageDemo includes 12 generated images, but the generated .html files have absolute paths, so you'll need to recreate them with the scripts. 
+> The batch files now rely on the relative layout of this repo. As long as you keep the folders together you normally only need to point them at your workflow JSON or tweak the axis/value lists—no more global path surgery.
 
 > [!TIP]
 > Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
@@ -40,12 +40,11 @@ To use it, you (super-high level overview)
 - Run the .bat files and review your images using the generated .html in your browser.
 
 To use it, you (ok, this is simplified a bit less)
-- In the ComfyUI editor, set it to display nodeid's, then edit, save and export as API your workflow.  Take note of which nodes and parameters you want to test (ex. KSampler:3:steps, KSampler:3:cfg). 
-- Edit the '0 - gen_images.bat' to reflect the node:parameters you want to test.
-- Edit the \params parameter files that contain the parameter values to be tested, with filenames that reflect the node:paramater pair. The .bat file refers to these param files. Also change the paths in the .bat to reflect where you installed the scripts.
+- In the ComfyUI editor, set it to display node IDs, then edit, save and export-as-API your workflow. Take note of the node/parameter pairs you plan to sweep (ex. `KSampler:3:steps`, `KSampler:3:cfg`).
+- Edit the `0 - gen_images.bat` file to list the axes you want to probe (`--s`, `--t`, …). (`--s` and `--t` are required.) The script assumes the repository layout, defaults `--basepath` to the batch file’s folder, and automatically looks for parameter files in `params/`.
+- Fill the `\params\*.txt` files with the values to test. Each filename must match `<nodeId>-<input>.txt` so the generator can locate it.
 - Keep comfyui running. You can close the comfyui editor if you want, but it isn't necessary.  Don't use the ComfyUI editor if you keep it open.
-- Run '0 - gen_images.bat'.  It will show info on which params will be be tested.  Each combination will be sent to the ComfyUI built-in webserver and queued and processed. In the ComfyUI console, you'll see the queueing and processing activity. When the processing has completed (you'll know because it doesn't start processing another).  This is the same idea as when you press the Run button in the ComfyUI editor - it queues and processes a single item.
-- Now that the images have been generated, copy them to the /params/images folder.
+- Run `0 - gen_images.bat`.  It prints the plan and enqueues every missing permutation to the ComfyUI server. Finished PNGs land automatically under `params/images/<folder_token>` (no manual copying).
 - Run the '1 - gen_aligned_viewer.bat' and/or '2 - gen_axis_grid_viewer.bat' which creates image viewers as .html files in your images folder. 
 - Open the .html file in your browser.  You can change the theme (light/dark), lock a slider with the checkbox, and adjust the sliders to see the image that was generated that match the slider settings.  Scrub the sliders back and forth - you'll see how the image changes.
 - The grid_viewer html allows you to scrub the sliders, and also specify a slider to be x and/or y axis to give an XY plot.  You can scrub the other sliders and the plot will update.
@@ -91,8 +90,8 @@ Grab a copy of this repo.
       3-steps.txt - param values
       3-sampler_name.txt
       3-scheduler.txt
-      9-filename_prefix.txt - use this to specify an /output/subfolder for the generated images
-      /images *copy the generated images here before creating the viewer
+      9-filename_prefix.txt - choose the subfolder name used under params/images
+      /images *generated images are saved here automatically (subfolders per filename_prefix)
   /SimpleImageDemo *uses the ksampler steps and cfg with 12 images.
     0 - gen_images.bat - for generating the images
     1 - gen_aligned_viewer.bat - for creating the simple viewer
@@ -154,49 +153,53 @@ We need to tell it exactly which node property values to use:
 ```
 SampleImageDemo
 ```
-Now edit the image generation batch file to reflect YOUR file paths, server address and port and config files.  The available dimensions are t,u,v,w,x,y. Always start at t and work your way down as more dimensions are needed.
-- Go to \SimpleImageDemo folder and edit:
-0 - gen_images.bat
+Now edit the image generation batch file to list the axes you want to explore. The script now discovers the base directory automatically, so you normally only need to specify the axes, their types, and the save target.
+- Go to `\SimpleImageDemo` and edit `0 - gen_images.bat`:
 ```
-python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py" ^
-  --workflow_api "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1_API.json" ^
-  --basepath "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo" ^
-  --server http://127.0.0.1:8188 ^
-  --t 3-cfg.txt --as float ^
-  --u 3-steps.txt --as int ^
+@echo off
+setlocal
+pushd "%~dp0"
+
+python "..\gen_images.py" ^
+  --s 3-cfg.txt --as float ^
+  --t 3-steps.txt --as int ^
   --save-target 9:filename_prefix.txt ^
   --verbose
 
-  PAUSE
+popd
+PAUSE
 ```
-Now run '0 - gen_images.bat' and you should see 
-```W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo>python "W:\ComfyUI\ComfyParamVisualizer\gen_images.py"   --workflow_api "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\simple_image1_API.json"   --basepath "W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo"   --server http://127.0.0.1:8188   --t 3-cfg.txt --as float   --u 3-steps.txt --as int   --save-target 9:filename_prefix.txt   --verbose
-[INFO] Reading filename_prefix from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\9-filename_prefix.txt
-[INFO] Folder prefix token (from 9-filename_prefix.txt) = 'SampleImageDemo'
-[INFO] Axis t: reading values from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\3-cfg.txt (type=float)
-[INFO] Axis t: 3 values loaded
-[INFO] Axis t -> node 3, input 'cfg', count=3
-[INFO] Axis u: reading values from W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\3-steps.txt (type=int)
-[INFO] Axis u: 4 values loaded
-[INFO] Axis u -> node 3, input 'steps', count=4
+Now run `0 - gen_images.bat` and you should see output similar to:
+```D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo>python "..\gen_images.py"   --s 3-cfg.txt --as float   --t 3-steps.txt --as int   --save-target 9:filename_prefix.txt   --verbose
+[INFO] Reading filename_prefix from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\9-filename_prefix.txt
+[INFO] Prefix token (from 9-filename_prefix.txt) = 'SampleImageDemo'
+[INFO] Axis s: reading values from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\3-cfg.txt (type=float)
+[INFO] Axis s: 3 values loaded
+[INFO] Axis s -> node 3, input 'cfg', count=3
+[INFO] Axis t: reading values from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\3-steps.txt (type=int)
+[INFO] Axis t: 4 values loaded
+[INFO] Axis t -> node 3, input 'steps', count=4
 Planned permutations: 1 * 3 * 4 * 1 * 1 * 1 * 1 = 12
-[OK]  t=8.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-20)
-[OK]  t=8.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-30)
-[OK]  t=8.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-40)
-[OK]  t=8.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-50)
-[OK]  t=9.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-20)
-[OK]  t=9.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-30)
-[OK]  t=9.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-40)
-[OK]  t=9.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-50)
-[OK]  t=10.0 u=20 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-20)
-[OK]  t=10.0 u=30 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-30)
-[OK]  t=10.0 u=40 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-40)
-[OK]  t=10.0 u=50 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-50)
-Done. Enqueued 12 prompts to http://127.0.0.1:8188. Images folder: W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo\params\images\SampleImageDemo
+[OK]  s=8.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-20)
+[OK]  s=8.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-30)
+[OK]  s=8.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-40)
+[OK]  s=8.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-50)
+[OK]  s=9.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-20)
+[OK]  s=9.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-30)
+[OK]  s=9.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-40)
+[OK]  s=9.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-50)
+[OK]  s=10.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-20)
+[OK]  s=10.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-30)
+[OK]  s=10.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-40)
+[OK]  s=10.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-50)
+Done. Enqueued 12 prompts to http://127.0.0.1:8188. Images folder: D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\images\SampleImageDemo
 
 W:\ComfyUI\ComfyParamVisualizer\SimpleImageDemo>PAUSE
 Press any key to continue . . .
 ```
+
+Want a rehearsal without generating anything? Add `--dry-run` to the batch file to preview the plan, cleanup actions, and sample filenames before posting prompts to ComfyUI.
+
 This is good.  You may see 'path not found' kind of errors, so check your paths in the .bat again if that happens.
 
 Meanwhile, your ComfyUI console shows this:
@@ -241,25 +244,25 @@ Prompt executed in 3.11 seconds
 
 *Don't you wish all image generations were that fast? Omg.*
 
-Now copy the generated images from 
-/output/SimpleImageDemo
-to
-ComfyParamVisualizer\SimpleImageDemo\params\images
+The PNGs arrive in `SimpleImageDemo\params\images\<folder_token>` automatically. No manual copying is needed—leave them in place so the viewers can load them.
 
-<img width="411" height="184" alt="image" src="https://github.com/user-attachments/assets/e6dc8513-e4a3-474f-8b06-e29f713542d0" />
-
-Delete those two repo .html files as those contain bad filepaths.  You'll need to re-create those .html files with the viewer .bat files.
+Delete the two HTML files shipped in the repo (they contain placeholder paths) and regenerate them with the viewer batch files to get links that match your machine.
 
 # 4. Generate the viewer html file(s)
-You are almost there! Next, edit paths in the 
-1 - gen_aligned_viewer.bat
+You are almost there! The viewer batch files now assume the repository layout, so you usually only need to point them at the workflow JSON. For example, `1 - gen_aligned_viewer.bat` ships as:
 ```
-python "W:\ComfyUI\ComfyParamVisualizer\make_aligned_viewer.py" "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\params\images" "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\simple_image1.json" -o "W:\ComfyUI\ComfyParamVisualizer\SimpleImage1\params\images\0000_aligned_viewer.html"
+@echo off
+setlocal
+pushd "%~dp0"
 
+python "..\make_aligned_viewer.py" ^
+  --workflow "simple_image1.json"
+
+popd
 PAUSE
 ```
 
-Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_aligned_viewer.html.  Open that .html file in your browser (dbl-click on it) and you will see:
+Now run `1 - gen_aligned_viewer.bat` and it will create `params/images/0000_aligned_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
 
 <img width="817" height="609" alt="image" src="https://github.com/user-attachments/assets/c59de184-867a-459c-9cee-b1ce1a9e23a1" />
 
@@ -267,7 +270,9 @@ Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_alig
 - Check the checkbox on the left to lock the slider so you don't accidentally change the value.
 - Move the sliders and see the changes to your image. Enjoy!
 
-Do the same with '2 - gen_axis_grid_viewer.bat' to get a viewer with the optional XY plot.  We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
+`2 - gen_axis_grid_viewer.bat` follows the same pattern—by default it runs `python "..\make_axis_grid_viewer.py" --workflow "simple_image1.json"` so the images folder and output name are inferred for you. Run it to generate the grid/XY viewer.
+
+We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
 
 Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.
 <img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />

@@ -1,204 +1,148 @@
-CHATGPT5 PROMPT: RECREATE "make_axis_grid_viewer.py" WITH ZERO DEVIATIONS
+Prompt for ChatGPT 5 — Recreate `make_axis_grid_viewer.py`
+===========================================================
 
 Objective
 ---------
-Generate ONE Python file named exactly **make_axis_grid_viewer.py** that writes an HTML viewer for ComfyUI image sets with dynamic single/1D/2D grid views. The implementation MUST replicate the functionality and UI/UX below EXACTLY. Output **only** the Python code (with a Unix shebang). Use only the Python standard library.
+Generate a **single Python file** named `make_axis_grid_viewer.py` that produces the axis-grid HTML viewer described below. The implementation must use only the Python standard library, target Python 3.8+, start with a Unix shebang, and finish with `if __name__ == "__main__": main()`. Output the code only.
 
-High-Level Features (must-have)
--------------------------------
-- **Lazy-load only.** No base64 embedding. Images are referenced via file:// URLs.
-- **Modes:** (a) single image (no axes), (b) 1D grid (X **or** Y axis), (c) 2D grid (X & Y axes).
-- **No flicker on slider changes.** Keep the grid structure stable and update `<img>` `src` **in place**; rebuild the DOM **only** when the grid structure (mode or axis lengths) changes.
-- **Theme-aware UI.** Light/dark theme toggle; grid and backgrounds respect theme variables.
-- **Axis per slider:** picklist with values `none|x|y`. Exactly one `x` owner and one `y` owner at any time. Once an axis is taken, that option is disabled in all other picklists (do not auto-reassign owners).
-- **Disable axis sliders.** When a slider is set as `x` or `y`, disable its range input (re-enable if moved back to `none`, unless locked).
-- **Dynamic updates:** changing any slider (whose axis is `none`) or any axis selection updates the grid instantly.
-- **No filenames shown** in the grid and **no "Grid: ..." text** anywhere.
-- **Uniform spacing**: 10px gap between cells horizontally and vertically.
-- **Image sizing & scrolling:**
-  - Columns use `minmax(256px, 1fr)` so each cell is at least 256px wide.
-  - Images are fully visible (never stretched/cropped): `object-fit: contain; width: 100%; height: auto;` with `background: #000`.
-  - Grid uses full screen width; **horizontal scrollbar** appears if X has too many items.
-  - **Single-image mode**: the image is auto-fitted to the available viewport height so the entire image is visible without scrolling.
+CLI Specification
+-----------------
+Use `argparse` with **optional** flags (no required positionals):
 
-CLI & IO
---------
-```
-python make_axis_grid_viewer.py "C:/path/to/images" "C:/path/to/workflow.json" -o "C:/path/to/viewer.html"
-```
-- Positional args: `image_dir` (ABS path to PNG folder), `workflow` (ABS path to workflow JSON).
-- Required flag: `-o/--output` absolute path for output HTML.
-- Use only: `argparse`, `json`, `re`, `sys`, `urllib.parse`, `string.Template`, `pathlib.Path`.
-- Resolve all input paths via `Path(...).resolve()`; exit nonzero with a clear message if paths are bad.
-- After writing HTML, print two lines:  
-  1) `Generated HTML: <path>`  
-  2) `Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.`
+| Option        | Default                                | Purpose |
+|---------------|----------------------------------------|---------|
+| `--images`    | `<base>/params/images`                 | Directory containing PNGs to visualise. |
+| `--workflow`  | `<base>/simple_image1.json`            | ComfyUI workflow JSON (UI export) for node metadata. |
+| `-o/--output` | `<images>/0000_axis_grid_viewer.html`  | Output HTML file; ensure parent folders exist. |
+| `--base`      | `.`                                    | Base path for resolving relative values. |
 
-Filename Encoding & Parsing
----------------------------
-- Consider only `*.png` files (case sensitive is acceptable).
-- Each PNG stem consists of segments split by `"--"`. Each segment is exactly: `"<node_id>-<prop>-<value_token>"`.
-- Validate: `node_id` decimal digits only; `prop` matches `[A-Za-z0-9_]+`.
-- **Counter stripping:** If `value_token` ends with `_00001` or `_00001_` (general form `_+<digits>_?`), remove that suffix using regex `r"^(.*?)(_+\d+_?)$"` if group(1) nonempty.
-- **Numeric interpretation:** After stripping, replace `_` with `.` to get `dotted`; if `float(dotted)` succeeds, mark numeric with display string `dotted` (e.g., `3_5` -> display `3.5`). Otherwise treat as non-numeric; both key and display use the token post-stripping (not dotted).
-- All files must share the **same dimension count** and the **same (node_id, prop) signature** and will be rejected otherwise.
-- For each dimension, collect distinct keys -> `{ num: float|None, disp: string }`. Sort keys by `(num, key)` if all numeric, otherwise lexicographically. Build `dim_values[i]` as an ordered list of `{ "k": key, "d": display }`.
-- `lookup` is a dict mapping `"k0|k1|...|kN"` -> `filename` (with extension).
+Backward-compatible positional arguments are supported in the order `[image_dir workflow output]` to fill any missing options. Reject more than three positional args. Resolve all paths using `Path(...).resolve()` after applying defaults.
 
-Workflow Titles -> Slider Labels
---------------------------------
-- Parse the workflow JSON: accept any of these shapes:
-  - `{"nodes": {id: node, ...}}` or `{"nodes": [node, ...]}`
-  - `[node, ...]`
-- For each node, label pick order: `title` or `label` or `type` or `"Node <id>"`.
-- For each dimension `(node_id, prop)`, create slider label `"Title:id:prop"`.
-- Compute `label_em = max(8.0, min(60.0, max_label_len * 0.62))` for CSS grid column width.
+Validation & Input Handling
+----------------------------
+* Confirm the images directory exists and is readable.
+* Confirm the workflow JSON exists and parse it into a dictionary keyed by node IDs. Accept shapes:
+  * `{ "nodes": { id: node, ... } }`
+  * `{ "nodes": [node, ...] }`
+  * `[node, ...]`
+* Derive readable slider labels in priority order: `title`, then `label`, then `type`, else `"Node <id>"`.
 
-URI Generation (file://)
+PNG Filename Parsing
+--------------------
+* Only consider `.png` files.
+* Split the stem on `--`. Each segment must look like `<nodeId>-<prop>-<token>` where:
+  * `nodeId` is digits only.
+  * `prop` matches `[A-Za-z0-9_]+`.
+* Strip trailing counters (`_00001`, `_00001_`, etc.) via regex `r"^(.*?)(_+\d+_?)$"` if the first group is non-empty.
+* Replace `_` with `.` to get a dotted token; if `float(dotted)` succeeds, treat the value as numeric, storing both the numeric value and display string (with `.`). Otherwise mark it as non-numeric and keep the original token string for key/display.
+* Enforce that all PNGs share the same dimension count **and** identical `(nodeId, prop)` signature; error out otherwise.
+* For each dimension collect ordered values:
+  * If all values are numeric, sort by `(numeric_value, key)`.
+  * Otherwise sort lexicographically by key.
+* Build:
+  * `dim_values`: list of lists containing `{ "k": key, "d": display }`.
+  * `lookup`: map of `"k0|k1|...|kN"` → original filename.
+
+HTML Output Requirements
 ------------------------
-- Convert each PNG to a safe `file://` URL via `Path(...).as_uri()`, then `urlsplit/unsplit` with `quote` on `path` and `quote_plus` on `query`/`fragment`. Build `image_urls: { filename: file_uri }`.
 
-HTML Template (string.Template)
--------------------------------
-- Use `string.Template` and substitute exactly these placeholders:
-  - `${img_dir}`, `${workflow_json}`, `${label_em}`, `${meta_json}`
-- Embed `meta_json = json.dumps(meta)` where:
+* Viewer operates in **lazy-load mode only** — no base64 embedding.
+* Generate image URLs **relative** to the output HTML location (use POSIX separators). Do **not** emit `file://` URIs.
+* `<title>` and header `<h1>` must both read `ComfyParamVisualizer`.
+* Theme toggle stored in `localStorage` under `"viewer_theme"`, honouring the system preference on first visit.
+* Empty metadata block (provide `<div class="meta"></div>` with no text).
+* Slider UI layout:
+  * Each row contains: `[lock checkbox][label (right-aligned)][value bubble + slider][axis select]`.
+  * Labels formatted `"<Title>:<nodeId>:<prop>"`.
+  * Range width derived from `sliderWidth(n) = min(680, max(140, 140 + (n-2)*36))`.
+  * Range inputs share styling with the aligned viewer: 6px track, 24px thumb (26px on hover), accent color from theme.
+  * Value bubble shows the current display value.
+* Axis select dropdown allows values `"none"`, `"x"`, `"y"`. At most one dimension can own each axis; disabled options should reflect ownership without auto-reassigning other axes.
+* Lock checkbox disables its slider even if the axis is released.
+* Canvas is replaced by a grid layout:
+  * `.grid` uses CSS Grid with 10px gaps, `minmax(256px, 1fr)` columns, and `object-fit: contain; width: 100%; background: #000;` on images.
+  * Grid width spans the viewport; horizontal scroll should appear when X has many values.
+  * Headers (row/column) use `.hdr` elements; no filenames or “Grid:” text anywhere.
+* Modes:
+  * **Single**: no X/Y axes; allocate one image cell and use `fitSingleImage()` to clamp height to the viewport (`window.innerHeight - top - 24`, min 100px). Re-run on resize (once per change).
+  * **X axis**: headers along top row.
+  * **Y axis**: headers along first column.
+  * **X + Y axes**: full matrix with headers on top row and first column.
+* Flicker-free updates:
+  * Maintain `curStruct = { mode, xLen, yLen }` and rebuild the DOM only when structure changes.
+  * For every render, iterate existing `<img>` nodes and update `src`/`href` in place. Missing filenames should clear `src` and remove the anchor `href`.
+
+JavaScript Architecture (must match)
+------------------------------------
+
+```js
+const data = ${meta_json};
+const dims = data.dim_values.length;
+const curIdx = new Array(dims).fill(0);
+const locked = new Array(dims).fill(false);
+const axis = new Array(dims).fill("none"); // "none" | "x" | "y"
+const slidersRoot = document.getElementById("sliders");
+const gridWrap = document.getElementById("gridWrap");
+const gridRoot = document.getElementById("grid");
+const sliderEls = [];
+const lockEls = [];
+const axisSelEls = [];
+let curStruct = { mode: "", xLen: 0, yLen: 0 };
+let imageCells = [];
+```
+
+Essential helper behaviour:
+
+* `buildUI()` sets up sliders, lock checkboxes, select elements, updates disabled state, and calls `syncAxisOptions()`.
+* `updateDisabledState(i)` disables sliders when locked or when the axis is set to `x` or `y`.
+* `syncAxisOptions()` enforces unique axis owners by disabling already-claimed options in other selects without changing their existing selection.
+* `keyFrom(idxOverride)` and `fnameFor(idxOverride)` generate lookup keys and filenames using overrides for X/Y indices.
+* `ensureStructure(hasX, hasY, xLen, yLen)` rebuilds DOM only when necessary. Use `.hdr` cells for headers and `.cell` divs containing `<a><img></a>` for images.
+* `desiredFilenames(...)` returns the list of filenames in row-major order for the current structure.
+* `renderGrid()` obtains desired filenames, calls `ensureStructure`, then updates all `<img>` elements (set `decoding = "async"` before assigning `src`).
+* `fitSingleImage()` caps the single image’s height to the available space.
+
+CSS Requirements
+----------------
+
+* Define light/dark variables identical to the aligned viewer.
+* `.container` spans full width (no fixed max width).
+* `.grid` uses `gap: 10px`.
+* `.hdr` cells style similar to table headers (background tinted, center-aligned).
+* `.cell img` must keep aspect ratio and have black background.
+
+Relative Path Generation
+------------------------
+
+* Provide a helper `relpath_for_html(target, base)` returning POSIX-style relative paths (replace `\` with `/`).
+* Build `image_urls` using that helper for every PNG relative to the output directory.
+* JSON metadata should include:
   ```json
   {
     "dim_values": [...],
     "lookup": {...},
     "dim_labels": [...],
-    "label_em": <number>,
-    "img_dir": "<abs>",
-    "workflow_json": "<abs>",
+    "label_em": <float>,
     "lazy": true,
     "image_urls": {...}
   }
   ```
+  (No absolute paths recorded.)
 
-CSS (must match selectors/intent)
----------------------------------
-- Root theme variables:
-  ```css
-  :root { --bg:#fff; --fg:#111; --muted:#666; --border:#cfcfcf; --accent:#7a7afe; }
-  :root[data-theme="dark"]{ --bg:#0d0f13; --fg:#e5e7eb; --muted:#9aa0a6; --border:#2a2f3a; --accent:#7aa2ff; }
-  body{margin:0;font-family:sans-serif;background:var(--bg);color:var(--fg);}
-  .container{width:100%;max-width:none;margin:12px auto;padding:0 12px;box-sizing:border-box;}
-  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
-  h1{margin:0;font-size:1.05rem;font-weight:600;}
-  .meta{font-size:0.85rem;color:var(--muted);margin-bottom:8px;}
-  .toggle{border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:8px;padding:4px 8px;cursor:pointer;}
-  #sliders{border:1px solid var(--border);border-radius:8px;padding:8px 10px 2px 10px;background:rgba(127,127,127,0.03);}
-  .slider-row{display:grid;grid-template-columns:auto ${label_em}em 1fr 110px;align-items:center;gap:10px;margin:10px 0;}
-  .label-col{justify-self:end;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .slider-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;}
-  .value-bubble{font-size:0.85rem;color:var(--muted);}
-  .axis-wrap{display:flex;gap:6px;align-items:center;justify-content:flex-end;}
-  .axis-wrap select{padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);}
-  .axis-wrap option{background:var(--bg);color:var(--fg);}
-  input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);background:var(--bg);}
-  #gridWrap{margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px;overflow-x:auto;overflow-y:auto;width:100%;box-sizing:border-box;background:var(--bg);}
-  #grid{display:grid;gap:10px;align-items:start;grid-auto-rows:auto;background:var(--bg);}
-  .hdr{font-size:0.9rem;color:var(--muted);text-align:center;padding:2px 4px;white-space:nowrap;background:var(--bg);}
-  .yhdr{text-align:right;padding-right:6px;white-space:nowrap;}
-  .cell{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg);}
-  .cell a{display:block;border:1px solid var(--border);width:100%;}
-  .cell img{display:block;width:100%;height:auto;object-fit:contain;background:#000;min-width:256px;}
-  .footer{display:none;}
-  ```
+Console Output
+--------------
 
-JavaScript (must implement these behaviors/structures)
-------------------------------------------------------
-- Theme initialization + toggle:
-  ```js
-  (function(){
-    const saved=localStorage.getItem("viewer_theme");
-    if(saved==="dark" || (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)){
-      document.documentElement.setAttribute("data-theme","dark");
-    }
-    document.getElementById("themeToggle").onclick=function(){
-      const cur=document.documentElement.getAttribute("data-theme");
-      if(cur==="dark"){document.documentElement.removeAttribute("data-theme");localStorage.setItem("viewer_theme","light");}
-      else{document.documentElement.setAttribute("data-theme","dark");localStorage.setItem("viewer_theme","dark");}
-    };
-  })();
-  ```
-- Data bootstrap:
-  ```js
-  const data=${meta_json};
-  const dims=data.dim_values.length;
-  const curIdx=new Array(dims).fill(0);
-  const locked=new Array(dims).fill(false);
-  const axis=new Array(dims).fill("none"); // "none"|"x"|"y"
-  const slidersRoot=document.getElementById("sliders");
-  const gridWrap=document.getElementById("gridWrap");
-  const gridRoot=document.getElementById("grid");
-  const gridHint=document.getElementById("gridHint"); // hidden
-  const sliderEls=[], lockEls=[], axisSelEls=[];
-  let curStruct={mode:"",xLen:0,yLen:0};
-  let imageCells=[]; // array of <img> in row-major order
-  ```
-- Build sliders UI (`buildUI()`):
-  - For each dimension create row: `[checkbox lock][label][value bubble + range][axis select]`.
-  - Range width uses `sliderWidth(n)` where `n` is count of values (`Math.min(680, Math.max(140, 140+(n-2)*36))`).
-  - `oninput`: update `curIdx[i]`, update bubble, call `renderGrid()`.
-  - Axis select: values `"none","x","y"`. On change call `setAxis(i, value)`.
-  - Maintain arrays `sliderEls`, `lockEls`, `axisSelEls`. After construction call `syncAxisOptions()`.
-- Locking/disable rules:
-  - `updateDisabledState(i)`: disable the range if `locked[i] || axis[i] !== "none"`.
-  - `syncAxisOptions()`: compute owners `xOwner = axis.indexOf("x")`, `yOwner = axis.indexOf("y")`; for each other select, disable the corresponding option if already owned. Do **not** auto-change others’ current selections.
-  - `setAxis(i, v)`: set `axis[i]=v`, call `updateDisabledState(i)`, `syncAxisOptions()`, then force structure recompute (`curStruct.mode=""`) and `renderGrid()`.
-- Lookup helpers:
-  ```js
-  function keyFrom(idxOverride){
-    const arr=[];
-    for(let d=0; d<dims; d++){
-      const i = (idxOverride && Object.prototype.hasOwnProperty.call(idxOverride, d)) ? idxOverride[d] : curIdx[d];
-      arr.push(data.dim_values[d][i].k);
-    }
-    return arr.join("|");
-  }
-  function fnameFor(idxOverride){
-    return data.lookup[keyFrom(idxOverride)];
-  }
-  ```
-- **Flicker-free rendering**:
-  - `ensureStructure(hasX,hasY,xLen,yLen)`: compare against `curStruct`; if different, rebuild grid DOM **once** and repopulate `imageCells` with references to newly created `<img>` elements; include row/column header cells (no filenames in cells).
-  - `makeImgCell()` returns the created `<img>` (wrapped in `<a>` and `.cell`) so callers can set `src` later without DOM rebuild.
-  - `desiredFilenames(...)` builds the row-major list of names for the current axes and indices.
-  - `renderGrid()`:
-    1. Compute `xDim/yDim`, `hasX/hasY`, and lengths.
-    2. Call `ensureStructure(...)` with the lengths.
-    3. Build the list of desired filenames and iterate over `imageCells` to set `a.href` and `img.src` **in place**. If a filename is missing, clear the image `src` and remove link `href`.
-    4. If in single-image mode, call `fitSingleImage()` and re-run it on the next `resize` (once).
-- **Headers and grid templates**:
-  - `xy`: `gridTemplateColumns = "auto " + Array(xLen).fill("minmax(256px,1fr)").join(" ")` then add one empty corner header, X headers on top row, Y headers at left column.  
-  - `x`: `gridTemplateColumns = "auto " + Array(xLen).fill("minmax(256px,1fr)").join(" ")`, with top headers then one row of images.
-  - `y`: `gridTemplateColumns = "auto minmax(256px,1fr)"`, Y headers in first column.
-  - `single`: `gridTemplateColumns = "minmax(256px,1fr)"` with one image.
-- **Viewport fit for single image**:
-  - `fitSingleImage()` computes available height as `window.innerHeight - gridWrap.getBoundingClientRect().top - 24` and sets `img.style.maxHeight` accordingly (min 100px).
-- No captions under images, no grid hint text.
+After writing the HTML successfully, print:
+1. `Generated HTML: <absolute_output_path>`
+2. `Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.`
 
-Python Structure (must implement exactly these functions)
---------------------------------------------------------
-- `parse_args()` — argparse per above CLI.
-- `strip_counter(token)` — regex-based counter stripping.
-- `parse_dimension_segment(seg)` — returns `(node_id, prop, vnum, key, disp)` or `None`.
-- `parse_filename(fname)` — splits and validates segments; returns list of segments or `None`.
-- `load_node_titles(workflow_path)` — builds node id -> title mapping from workflow JSON.
-- `to_file_uri(path)` — builds safe file:// URI.
-- `main()` — parses inputs; scans PNGs; validates counts/signature; builds `dim_values`, `lookup`, `dim_labels`, `label_em`, `image_urls`; writes HTML via `string.Template` with `${meta_json}` etc.
-
-Absolute Requirements
+Libraries & Utilities
 ---------------------
-- Single output file named `make_axis_grid_viewer.py` with a Unix shebang and `if __name__ == "__main__": main()`.
-- Use **only** the specified libraries. No external packages. No extra CLI flags.
-- HTML must include the specified CSS selectors and JavaScript architecture for flicker-free updates.
-- Grid/headers show only the human-readable dimension values; never show filenames in cells or any "Grid: ..." text line.
-- Theme toggle persists in `localStorage` with key `"viewer_theme"`.
-- Keep code comments brief. Do not add narrative text outside the code.
+
+Only import: `argparse`, `json`, `re`, `os`, `sys`, `pathlib.Path`, `string.Template`. Do not add other dependencies.
+
+Error handling should be consistent with the aligned viewer: print errors to `stderr` and exit with status 1 if inputs are invalid.
 
 Deliverable
 -----------
-Return **just** the Python code for `make_axis_grid_viewer.py`, nothing else.
+Return only the Python code implementing these requirements. No markdown or commentary should appear after the code block.
