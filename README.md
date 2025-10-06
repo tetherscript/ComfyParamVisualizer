@@ -256,8 +256,7 @@ python "W:\ComfyUI\ComfyParamVisualizer\make_aligned_viewer.py" "W:\ComfyUI\Comf
 PAUSE
 ```
 
-Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_aligned_viewer.html
-Open that .html file in your browser (dbl-click on it) and you will see:
+Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_aligned_viewer.html.  Open that .html file in your browser (dbl-click on it) and you will see:
 
 <img width="817" height="609" alt="image" src="https://github.com/user-attachments/assets/c59de184-867a-459c-9cee-b1ce1a9e23a1" />
 
