@@ -264,7 +264,12 @@ Now run '1 - gen_aligned_viewer.bat' and it will create /params/images/0000_alig
 - Check the checkbox on the left to lock the slider so you don't accidentally change the value.
 - Move the sliders and see the changes to your image. Enjoy!
 
-- 
+Do the same with '2 - gen_axis_grid_viewer.bat' to get a viewer with the optional XY plot.  We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
+
+As an added bonus, you can actually scrub and XY Plot!  Just select the sliders to use as the X and Y axis.
+<img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />
+
+
 
 
 
