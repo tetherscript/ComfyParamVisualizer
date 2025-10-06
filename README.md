@@ -151,7 +151,7 @@ We need to tell it exactly which node property values to use:
 ```
 SampleImageDemo
 ```
-Now edit the image generation batch file to reflect YOUR file paths, server address and port and config files.
+Now edit the image generation batch file to reflect YOUR file paths, server address and port and config files.  The available dimensions are t,u,v,w,x,y. Always start at t and work your way down as more dimensions are needed.
 - Go to \SimpleImageDemo folder and edit:
 0 - gen_images.bat
 ```
