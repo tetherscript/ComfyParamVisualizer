@@ -65,14 +65,24 @@ Grab a copy of this repo.
 ```
 /ComfyParamVisualizer
   gen_images.py - the image generation script.  Do not edit it.
-  make_aligned_viewer.py - the basic html viewer script. Do not edit it.
-  make_axis_grid_viewer.py - an advanced html viewer that includes an XY Plot.
-  
+  make_aligned_viewer.py - the basic html viewer creation script. Do not edit it.
+  make_axis_grid_viewer.py - an advanced html viewer creation script that includes an XY Plot.
   /1Misc
-    
-  /SimpleImage1
-    *uses the ksampler scheduler_name, sampler, steps and cfg with approx 1500 images.
-    
+    ChatGPT5Prompt_for_gen_images_py.txt - for recreating the image generation script with ChatGPT5.
+    ChatGPT5Prompt_for_make_aligned_viewer_py.txt - for recreating the basic viewer script with ChatGPT5.
+    ChatGPT5Prompt_recreate_axis_grid_viewer.txt - for recreating the grid viewer script with ChatGPT5.
+    ChatGPTStart.jpg - a good way to start tweaking the script, in ChatGPT5.
+    dump_picklist.bat - calls dump_picklist.py
+    dump_picklist.py - a helper for getting a node property list, like scheduler names so you don't have to enter them manually.
+    dump_picklist_CHATGPT.txt - for recreating this script in ChatGPT5.
+    sampler_names.txt - output from dump_picklist_py
+    scheduler.txt - output from dump_picklist_py
+  /SimpleImage1 *uses the ksampler scheduler_name, sampler, steps and cfg with approx 1500 images.
+    0 - gen_images.bat - for generating the images
+    1 - gen_aligned_viewer.bat - for creating the simple viewer
+    2 - gen_axis_grid_viewer.bat - for creating the XY plot viewer
+    simple_image1.json - your workflow file
+    simple_image1_API.json - your workflow API file
   /SimpleImageDemo
 
 ```
