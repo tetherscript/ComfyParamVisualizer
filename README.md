@@ -2,7 +2,7 @@
 
 Which ComfyUI workflow parameter combination is best?  Use the visualizer to find it.
 
-<iframe width="1060" height="839" src="https://www.youtube.com/embed/8kKi3KPQ8SA" title="ComfyParamVisualizer" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+https://github.com/user-attachments/assets/643010be-6cb1-4581-ae36-ceac92412540
 
 > [!TIP]
 > The batch files now rely on the relative layout of this repo. As long as you keep the folders together you normally only need to point them at your workflow JSON or tweak the axis/value lists—no more global path surgery.
