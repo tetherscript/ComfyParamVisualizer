@@ -139,7 +139,8 @@ SampleImageDemo
 
 NOTE: If the image generation fails due to ComfyUI crashing (usually due to a bad combination of parameters it really doesn't like), the next time you try to generate images it will try to resume where it left off so you don't have to start completely over.
 
-NOTE: If the ComfyParamVisualizer\SimpleImageDemo\params\images already has the images needed, it won't regenerate them.  So full a fresh regeneration run, remove the .pngs and .html files from this folder.
+> [!TIP]
+> When you generate images, it will look in ComfyParamVisualizer\SimpleImageDemo\params\images to see if the image already exists.  If it exists, it will skip it.  So for a full regeneration, remove all .pngs and .html files from this folder.
 
 Now edit the image generation batch file to list the dimensions, data types and save target node.
 - Go to `\SimpleImageDemo` and edit `0 - gen_images.bat`:
