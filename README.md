@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/643010be-6cb1-4581-ae36-ceac92412540
 > Quick win: You can try the viewer right now. Just copy the repo to your pc and open the ComfyParamVisualizer\SimpleImage1\params\images .html files to view the 12 images in that folder.
 
 ## The problem
-So you have ComfyUI and want to generate an image.  There could be 1000 different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
+So you have ComfyUI and want to generate an image.  There are thousands of different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
 
 This is the least complex image genertion workflow in ComfyUI and is used as it's default workflow.  Each of the highlighted parameters affects the generated image, and usually only several parameter combinations give the best image, many give a so-so image, and the rest give a horrible result. 
 
