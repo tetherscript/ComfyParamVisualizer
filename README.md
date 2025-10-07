@@ -16,7 +16,7 @@ There are 11 parameter dimensions in this simple workflow.  That's a lot of comb
 ![cui1](https://github.com/user-attachments/assets/025d93ac-5311-41e0-a81b-5c93f3e008c4)
 
 
-How much time do you spend looking for the best result?  Tweaking parameters is 90% of what we do in ComfyUI.
+How much time do you spend looking for the best result?  Tweaking parameters and clicking Run is 90% of what we do in ComfyUI.
 
 XY Plot custom nodes exist that can help understand, and perhaps discover the best parameter settings.  But these can have compatibility issues and can conflict with your other nodes, and they don't work for all workflows.
 
