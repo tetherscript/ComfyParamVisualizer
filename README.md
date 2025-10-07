@@ -256,9 +256,13 @@ Prompt executed in 3.13 seconds
 
 *Don't you wish all image generations were that fast? Omg.*
 
-The PNGs arrive in `SimpleImageDemo\params\images\<folder_token>` automatically. No manual copying is needed—leave them in place so the viewers can load them.
+The generated pngs are now in 
 
-Delete the two HTML files shipped in the repo (they contain placeholder paths) and regenerate them with the viewer batch files to get links that match your machine.
+```ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\output\SampleImageDemo```
+
+Copy these images to your repo folder 
+
+```ComfyParamVisualizer\SimpleImageDemo\params\images```
 
 # 4. Generate the viewer html file(s)
 You are almost there! The viewer batch files now assume the repository layout, so you usually only need to point them at the workflow JSON. For example, `1 - gen_aligned_viewer.bat` ships as:
@@ -276,7 +280,7 @@ PAUSE
 
 Now run `1 - gen_aligned_viewer.bat` and it will create `params/images/0000_aligned_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
 
-<img width="817" height="609" alt="image" src="https://github.com/user-attachments/assets/c59de184-867a-459c-9cee-b1ce1a9e23a1" />
+<img width="759" height="565" alt="image" src="https://github.com/user-attachments/assets/22deb2d5-e9a1-4c33-a7f8-42b96ca21a0c" />
 
 - Each NodeNameOrTitle:NodeID:Property has a slider for the values you included in the param .txt file.
 - Check the checkbox on the left to lock the slider so you don't accidentally change the value.
