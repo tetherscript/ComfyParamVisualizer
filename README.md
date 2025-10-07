@@ -264,7 +264,7 @@ Copy these images to your repo folder
 
 ```ComfyParamVisualizer\SimpleImageDemo\params\images```
 
-# 4. Generate the viewer html file(s)
+# 4. Generate the aligned viewer html file
 You are almost there! Edit `1 - gen_aligned_viewer.bat` and point it to your workflow file (not the api one).
 ```
 @echo off
@@ -286,14 +286,29 @@ Now run `1 - gen_aligned_viewer.bat` and it will create `params/images/0000_alig
 - Check the checkbox on the left to lock the slider so you don't accidentally change the value.
 - Move the sliders and see the changes to your image. Enjoy!
 
-`2 - gen_axis_grid_viewer.bat` follows the same pattern—by default it runs `python "..\make_axis_grid_viewer.py" --workflow "simple_image1.json"` so the images folder and output name are inferred for you. Run it to generate the grid/XY viewer.
+
+# 5. Generate the axis grid viewer html file
+Edit `2 - gen_axis_grid_viewer.bat` and point it to your workflow file (not the api one).
+```
+@echo off
+setlocal
+pushd "%~dp0"
+
+python "..\make_axis_grid_viewer.py" ^
+  --workflow "simple_image1.json"
+
+popd
+PAUSE
+```
+Now run `2 - gen_axis_grid_viewer.bat` and it will create `params/images/0000_axis_grid_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
+<img width="1745" height="1565" alt="image" src="https://github.com/user-attachments/assets/348b8a3e-ce24-4e37-9aec-d75ab02fadc7" />
 
 We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
 
 Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.
 <img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />
 
-# 5. Complete
+# 6. Complete
 
 That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all those workflow parameters affect your images.
 
