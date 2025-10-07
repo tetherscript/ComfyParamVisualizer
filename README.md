@@ -136,6 +136,11 @@ We need to tell it exactly which node property values to use:
 ```
 SampleImageDemo
 ```
+
+NOTE: If the image generation fails due to ComfyUI crashing (usually due to a bad combination of parameters it really doesn't like), the next time you try to generate images it will try to resume where it left off so you don't have to start completely over.
+
+NOTE: If the ComfyParamVisualizer\SimpleImageDemo\params\images already has the images needed, it won't regenerate them.  So full a fresh regeneration run, remove the .pngs and .html files from this folder.
+
 Now edit the image generation batch file to list the dimensions, data types and save target node.
 - Go to `\SimpleImageDemo` and edit `0 - gen_images.bat`:
 ```
@@ -144,6 +149,9 @@ setlocal
 pushd "%~dp0"
 
 python "..\gen_images.py" ^
+  --basepath "." ^
+  --workflow_api "simple_image1_API.json" ^
+  --server http://127.0.0.1:8188 ^
   --s 3-cfg.txt --as float ^
   --t 3-steps.txt --as int ^
   --save-target 9:filename_prefix.txt ^
