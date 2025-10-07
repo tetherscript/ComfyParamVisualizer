@@ -31,6 +31,8 @@ With this in mind, ComfyParamVisualizer was created.
 
 > [!TIP]
 > Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
+![scrub1](https://github.com/user-attachments/assets/c6983cf5-a8a3-43d0-9ba6-d582f4547c79)
+
 
 To use it, you (super-high level overview)
 - In the ComfyUI editor, create and save your workflow.
