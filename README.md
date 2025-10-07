@@ -51,6 +51,7 @@ To keep this simple, we'll use the default, simple ComfyUI workflow in Templates
 We'll test the KSampler:cfg vs KSampler:steps and specify 4 cfgs with 3 steps.  This will generate 12 images quickly so you can run the scripts and view them in the browser.
 
 Load this template in ComfyUI
+
 <img width="421" height="421" alt="image" src="https://github.com/user-attachments/assets/87983351-c861-471e-972c-e8b2b2902be1" />
 
 ## 1. The Visualizer files and folders
