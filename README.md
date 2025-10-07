@@ -315,6 +315,11 @@ That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice 
 > Click on an image in the viewer to load it into a separate tab, where you can drag it into the ComfyUI editor to recreate the workflow that made the image.
 >
 > Use the dump_picklist script and batch file from the 1Misc folder to generate lists of parameter value strings, like all the ksampler sampler_names, which can be a long list.  You can then copy/paste that into a param file.
+
+
+You made it this far. Join us in Discord:
+
+https://discord.gg/8FkFYpxvhG
  
 RussDev
 
