@@ -265,7 +265,7 @@ Copy these images to your repo folder
 ```ComfyParamVisualizer\SimpleImageDemo\params\images```
 
 # 4. Generate the viewer html file(s)
-You are almost there! The viewer batch files now assume the repository layout, so you usually only need to point them at the workflow JSON. For example, `1 - gen_aligned_viewer.bat` ships as:
+You are almost there! Edit `1 - gen_aligned_viewer.bat` and point it to your workflow file (not the api one).
 ```
 @echo off
 setlocal
