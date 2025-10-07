@@ -303,10 +303,7 @@ PAUSE
 Now run `2 - gen_axis_grid_viewer.bat` and it will create `params/images/0000_axis_grid_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
 <img width="1745" height="1565" alt="image" src="https://github.com/user-attachments/assets/348b8a3e-ce24-4e37-9aec-d75ab02fadc7" />
 
-We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
-
-Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.
-<img width="955" height="887" alt="image" src="https://github.com/user-attachments/assets/85777dc5-f188-4fab-b79e-6a4be7527c8b" />
+Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.  We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
 
 # 6. Complete
 
@@ -314,6 +311,7 @@ That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice 
 
 > [!TIP]
 > You can print your html page to pdf!
+> Click on an image in the viewer to load it into a separate tab, where you can drag it into the ComfyUI editor to recreate the workflow that made the image.
  
 RussDev
 
