@@ -10,8 +10,11 @@ https://github.com/user-attachments/assets/643010be-6cb1-4581-ae36-ceac92412540
 ## The problem
 So you have ComfyUI and want to generate an image.  There could be 1000 different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
 
-This is the least complex image genertion workflow in ComfyUI and is used as it's default workflow.  Each of the highlighted parameters affects the generated image, and usually only several parameter combinations give the best image, many give a so-so image, and the rest give a horrible result.  So which combination of these parameters is best? 
-![simple_image1_workflow_1a](https://github.com/user-attachments/assets/da1c611b-0a29-462f-8813-086d8b3959bb)
+This is the least complex image genertion workflow in ComfyUI and is used as it's default workflow.  Each of the highlighted parameters affects the generated image, and usually only several parameter combinations give the best image, many give a so-so image, and the rest give a horrible result. 
+
+There are 11 parameter dimensions in this simple workflow.  That's a lot of combinations.  So which combination of these parameters is best? 
+![cui1](https://github.com/user-attachments/assets/025d93ac-5311-41e0-a81b-5c93f3e008c4)
+
 
 How much time do you spend looking for the best result?  Tweaking parameters is 90% of what we do in ComfyUI.
 
@@ -33,25 +36,13 @@ With this in mind, ComfyParamVisualizer was created.
 > Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
 ![scrub1](https://github.com/user-attachments/assets/c6983cf5-a8a3-43d0-9ba6-d582f4547c79)
 
-
-To use it, you (super-high level overview)
+### High-level overview
 - In the ComfyUI editor, create and save your workflow.
 - Edit several .bat and param .txt files.
-- Run the .bat files and review your images using the generated .html in your browser.
-
-To use it, you (ok, this is simplified a bit less)
-- In the ComfyUI editor, set it to display node IDs, then edit, save and export-as-API your workflow. Take note of the node/parameter pairs you plan to sweep (ex. `KSampler:3:steps`, `KSampler:3:cfg`).
-- Edit the `0 - gen_images.bat` file to list the axes you want to probe (`--s`, `--t`, …). (`--s` and `--t` are required.) The script assumes the repository layout, defaults `--basepath` to the batch file’s folder, and automatically looks for parameter files in `params/`.
-- Fill the `\params\*.txt` files with the values to test. Each filename must match `<nodeId>-<input>.txt` so the generator can locate it.
-- Keep comfyui running. You can close the comfyui editor if you want, but it isn't necessary.  Don't use the ComfyUI editor if you keep it open.
-- Run `0 - gen_images.bat`.  It prints the plan and enqueues every missing permutation to the ComfyUI server. Finished PNGs land automatically under `params/images/<folder_token>` (no manual copying).
-- Run the '1 - gen_aligned_viewer.bat' and/or '2 - gen_axis_grid_viewer.bat' which creates image viewers as .html files in your images folder. 
-- Open the .html file in your browser.  You can change the theme (light/dark), lock a slider with the checkbox, and adjust the sliders to see the image that was generated that match the slider settings.  Scrub the sliders back and forth - you'll see how the image changes.
-- The grid_viewer html allows you to scrub the sliders, and also specify a slider to be x and/or y axis to give an XY plot.  You can scrub the other sliders and the plot will update.
-That's it! Have fun.
+- Run the .bat files to generate the images and create .html viewers for your images.
 
 > [!TIP]
-> You can use it on up to 6 dimensions (t,u,v,w,x,y) in any node, so that could be complex like: LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
+> You can use it on up to 7 dimensions (s,t,u,v,x,y,z) in any combination of node properties, so that could do something like : LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
 
 # DETAILED INSTRUCTIONS
 
