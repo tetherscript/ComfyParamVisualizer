@@ -42,11 +42,11 @@ With this in mind, ComfyParamVisualizer was created.
 - Run the .bat files to generate the images and create .html viewers for your images.
 
 > [!TIP]
-> You can use it on up to 7 dimensions (s,t,u,v,x,y,z) in any combination of node properties, so that could do something like : LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps.  I often test it with 1500+ images, and have tried 4000 and it worked fine, but all the fans on my PC were on full blast by the end.  This would be a perfect thing to throw at a runpod.ai 5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.
+> You can use it on up to 7 dimensions (s,t,u,v,x,y,z) in any combination of node properties, so that could do something like : LoraFile * Lora:strength * KSampler:scheduler * KSampler:sampler_name * KSampler:cfg * KSampler:steps * somethingelse.  I usually test it with 1500+ images.  This would be a perfect thing to throw at a runpod.ai rtx5090 instance - just let it go crazy for several hours, then download the resulting images and analyze them locally.  Much could be learned from that.
 
 # DETAILED INSTRUCTIONS
 
-To keep this simple, we'll use the default, simple ComfyUI workflow in Templates/Getting Started/Image Generation.  It uses a 2GB model, and is the fastest way to generate images as you get used to setting up the visualizer.  But you could use any workflow, even the crazy huge ones.  In my testing, I use an 10 yr old motherboard/CPU 32GB ram, RTX5060Ti-16GB.  I'm pretty sure my old GTX1080 8GB would work as that is what I used to learn ComfyUI.
+To keep this simple, we'll use the default, simple ComfyUI workflow in Templates/Getting Started/Image Generation, as shown in the above screenshot.  It uses a 2GB model, and is the fastest way to generate images as you get used to setting up the visualizer.  But you could use any workflow, even the crazy huge ones.  In my testing, I use a 10 year old motherboard/CPU 32GB ram, RTX5060Ti-16GB.  I'm pretty sure my old GTX1080 8GB would work as that is what I used to learn ComfyUI.
 
 We'll test the KSampler:cfg vs KSampler:steps and specify 4 cfgs with 3 steps.  This will generate 12 images quickly so you can run the scripts and view them in the browser.
 
@@ -272,6 +272,9 @@ Just select the sliders to use as the X and Y axis.  If there were more than two
 
 That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all those workflow parameters affect your images.
 
+> [!TIP]
+> You can print your html page to pdf!
+ 
 RussDev
 
 Tetherscript
