@@ -5,10 +5,7 @@ Which ComfyUI workflow parameter combination is best?  Use the visualizer to fin
 https://github.com/user-attachments/assets/643010be-6cb1-4581-ae36-ceac92412540
 
 > [!TIP]
-> The batch files now rely on the relative layout of this repo. As long as you keep the folders together you normally only need to point them at your workflow JSON or tweak the axis/value lists—no more global path surgery.
-
-> [!TIP]
-> Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
+> Quick win: You can try the viewer right now. Just copy the repo to your pc and open the ComfyParamVisualizer\SimpleImage1\params\images .html files to view the 12 images in that folder.
 
 ## The problem
 So you have ComfyUI and want to generate an image.  There could be 1000 different workflow parameter combinations. Which combination gives you the image you want?  How exactly do they contribute to your image?  You could just use the default parameter settings, but you wonder 'Is there something better?' The only way to find out is to manually tweak the settings, wait for image generation, rinse, repeat. 
@@ -31,6 +28,9 @@ With this in mind, ComfyParamVisualizer was created.
 - usable with any workflow
 - usable with any ComfyUI installation (no sage, with sage, portable, not portable, Windows, Linux).
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
+
+> [!TIP]
+> Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
 
 To use it, you (super-high level overview)
 - In the ComfyUI editor, create and save your workflow.
