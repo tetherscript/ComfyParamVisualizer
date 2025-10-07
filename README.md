@@ -33,7 +33,7 @@ With this in mind, ComfyParamVisualizer was created.
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
 
 > [!TIP]
-> Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player.
+> Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player. Scrubbing those params will help you understand ComfyUI.
 ![scrub1](https://github.com/user-attachments/assets/c6983cf5-a8a3-43d0-9ba6-d582f4547c79)
 
 ### High-level overview
