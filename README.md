@@ -72,19 +72,6 @@ Grab a copy of this repo.
     dump_picklist_CHATGPT.txt - for recreating this script in ChatGPT5.
     sampler_names.txt - output from dump_picklist_py
     scheduler.txt - output from dump_picklist_py
-  /SimpleImage1 *uses the ksampler scheduler_name, sampler, steps and cfg with approx 1500 images.
-    0 - gen_images.bat - for generating the images
-    1 - gen_aligned_viewer.bat - for creating the simple viewer
-    2 - gen_axis_grid_viewer.bat - for creating the XY plot viewer
-    simple_image1.json - your workflow file
-    simple_image1_API.json - your workflow API file
-    /params
-      3-cfg.txt - param values
-      3-steps.txt - param values
-      3-sampler_name.txt
-      3-scheduler.txt
-      9-filename_prefix.txt - choose the subfolder name used under params/images
-      /images *generated images are saved here automatically (subfolders per filename_prefix)
   /SimpleImageDemo *uses the ksampler steps and cfg with 12 images.
     0 - gen_images.bat - for generating the images
     1 - gen_aligned_viewer.bat - for creating the simple viewer
@@ -96,6 +83,8 @@ Grab a copy of this repo.
       3-steps.txt - param values
       9-filename_prefix.txt - use this to specify an /output/subfolder for the generated images
       /images *copy the generated images here before creating the viewer
+        *.png
+        *.html - the viewer files you will generate
 ```
 
 *For this example, we will modify the contents /SimpleImageDemo folder.*
