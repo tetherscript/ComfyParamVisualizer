@@ -142,6 +142,15 @@ NOTE: If the image generation fails due to ComfyUI crashing (usually due to a ba
 > [!TIP]
 > When you generate images, it will look in ComfyParamVisualizer\SimpleImageDemo\params\images to see if the image already exists.  If it exists, it will skip it.  So for a full regeneration, remove all .pngs and .html files from this folder.
 
+* gen_images.py parameters (from ChatGPT5Prompt_for_gen_images_py.txt).
+`--server` (default `http://127.0.0.1:8188`)
+`--client-id` (optional; default to a freshly generated UUID4 string)
+Axis specifiers (all optional except `--s` and `--t`, which are **required**): `--s`, `--t`, `--u`, `--v`, `--x`, `--y`, `--z`
+`--as` (repeatable): consumed in global axis order (`s, t, u, v, x, y, z`) for each **provided** axis. Accept values `auto`, `int`, `float`, `string`, or `str` (treat `str` as `string`). If a provided axis has no corresponding `--as`, default to `auto`.
+`--save-target` (required): `<nodeId>:filename_prefix.txt`. Read `<basepath>/params/<nodeId>-filename_prefix.txt` to get the folder token (trimmed). This node **must** exist and is the only SaveImage node whose `filename_prefix` the script may modify.
+`--dry-run` (flag): perform all planning, logging, and cleanup reporting without performing any HTTP requests.
+`--verbose` (flag): enables detailed logging (axis file reads, value counts, cleaned/ skipped files, assignments, etc.).
+
 Now edit the image generation batch file to list the dimensions, data types and save target node.
 - Go to `\SimpleImageDemo` and edit `0 - gen_images.bat`:
 ```
