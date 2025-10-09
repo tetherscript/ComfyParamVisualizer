@@ -63,9 +63,13 @@ HTML/JS Output Requirements
     - Base width 240px, track height 6px, accent color from CSS variable.
     - Thumb is a 24px circle (26px on hover) to improve mouse targeting.
   * Include a filename section under the sliders showing the current PNG as a clickable link.
-  * Viewer canvas renders the image; contextmenu on canvas should open the current PNG in a new tab (`window.open`) without altering the page state.
-  * Maintain a 64-image LRU cache on the client to speed up switching.
-  * Resize listener keeps the canvas height within the viewport.
+* Viewer canvas renders the image; contextmenu on canvas should open the current PNG in a new tab (`window.open`) without altering the page state.
+* Maintain a 64-image LRU cache on the client to speed up switching.
+* Image scaling:
+  - Never upscale above 100% of the image's natural size.
+  - When the image would overflow the viewport, scale it down to fit without requiring browser scrolling.
+  - Leave a 16px margin on the left, right, and bottom sides of the image area.
+  - Recompute scale on window resize.
 
 * JavaScript flow:
   * Preload nodes/dimensions from `meta_json`.

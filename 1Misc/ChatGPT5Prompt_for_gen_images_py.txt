@@ -1,4 +1,4 @@
-You are ChatGPT 5. Write a single Python 3 script named **gen_images.py** that sweeps ComfyUI parameters and enqueues every missing permutation to `/prompt`. The script must be **stdlib-only**, compatible with Python 3.8+, match the specification below exactly, and end with the usual `if __name__ == "__main__": main()` block. Output only the code (a single file) followed by a short “Usage” section as described near the end of this prompt.  
+﻿You are ChatGPT 5. Write a single Python 3 script named **gen_images.py** that sweeps ComfyUI parameters and enqueues every missing permutation to `/prompt`. The script must be **stdlib-only**, compatible with Python 3.8+, match the specification below exactly, and end with the usual `if __name__ == "__main__": main()` block. Output only the code (a single file) followed by a short â€œUsageâ€ section as described near the end of this prompt.  
 
 ---
 
@@ -20,7 +20,7 @@ Use `argparse` with the following options (all long names only):
   * `--s`, `--t`, `--u`, `--v`, `--x`, `--y`, `--z`
   * Each takes a value shaped exactly like `<nodeId>-<input>.txt` (nodeId is digits only, input is `[A-Za-z0-9_]+`). The actual values file is always resolved under `<basepath>/params/<nodeId>-<input>.txt`. Reject invalid specs.
 * `--as` (repeatable): consumed in global axis order (`s, t, u, v, x, y, z`) for each **provided** axis. Accept values `auto`, `int`, `float`, `string`, or `str` (treat `str` as `string`). If a provided axis has no corresponding `--as`, default to `auto`.
-* `--save-target` (required): `<nodeId>:filename_prefix.txt`. Read `<basepath>/params/<nodeId>-filename_prefix.txt` to get the folder token (trimmed). This node **must** exist and is the only SaveImage node whose `filename_prefix` the script may modify.
+* `--save-target` (required): `<nodeId>:<param>:<subfolder>`. This specifies the target node ID, the input name to set (e.g., `filename_prefix`), and the base images subfolder token. The script sets that node input to `<subfolder>/<segments>` for each permutation. No per-node text files are used.
 * `--dry-run` (flag): perform all planning, logging, and cleanup reporting without performing any HTTP requests.
 * `--verbose` (flag): enables detailed logging (axis file reads, value counts, cleaned/ skipped files, assignments, etc.).
 
@@ -37,10 +37,10 @@ Use `argparse` with the following options (all long names only):
 
 ### 3. Sweep Planning
 * For each axis the script should remember its target `(nodeId, input)` pair and the list of parsed values (or `[None]` for unused axes).
-* Build the Cartesian product across all seven axes using Python’s `itertools.product`.
+* Build the Cartesian product across all seven axes using Pythonâ€™s `itertools.product`.
 * For every permutation:
   * Compose the final value per `(nodeId, input)` with later axes in the global order winning ties (overrides).
-  * Build a “segments” string by iterating the axes in order and, for every `(nodeId, input)` that actually receives a value, append `"<nodeId>-<input>-<formattedValue>"`.  
+  * Build a â€œsegmentsâ€ string by iterating the axes in order and, for every `(nodeId, input)` that actually receives a value, append `"<nodeId>-<input>-<formattedValue>"`.  
     Formatting rules:
     - Floats must always contain a decimal point; replace `.` with `_`.
     - Integers and strings use their `str()` result, but also replace `.` with `_`.
@@ -48,7 +48,7 @@ Use `argparse` with the following options (all long names only):
   * Construct the ComfyUI filename prefix as `"<folder_token>/<segments>"`.
 
 ### 4. Output Location, Cleanup, and Resume
-* Folder token comes from the `--save-target` file contents (trimmed string, must be non-empty). Save it as-is.
+* Folder token is the `<subfolder>` provided in `--save-target`. Save it as-is.
 * Images live inside `<basepath>/params/images/<folder_token>`; derive this path once.
 * Compute the set of expected PNG filenames for the first output image of each permutation: `"<segments>_00001.png"`.
 * **Cleanup:** If the images folder already exists, list the files (ignore subdirectories). Delete any file not in the expected set. Log removals when `--verbose`. If the folder does not exist, log an informational message (when verbose) and skip cleanup.
@@ -60,7 +60,7 @@ Use `argparse` with the following options (all long names only):
 * For every missing permutation:
   * Deep-copy the workflow prompt (use `copy.deepcopy`).
   * Apply axis values by calling a helper that directly writes literals into `prompt[nodeId]["inputs"][input]`.
-  * Update the designated SaveImage node’s `filename_prefix` with the computed `folder_token/segments`.
+  * Update the designated node input (from `--save-target`) with the computed `folder_token/segments`.
   * POST to `<server>/prompt` with payload `{"prompt": <prompt_dict>, "client_id": "<client_id>"}` using `urllib.request`.
   * On success, print `[OK] axisSummary -> queued (prefix=<folder_token>/<segments>)`. The axis summary is a space-separated list like `s=foo t=bar`.
   * On HTTP errors, surface code and body (decoded as UTF-8) before exiting nonzero. On other exceptions, print a concise `[ERR] ...` message and exit.
@@ -69,19 +69,19 @@ Use `argparse` with the following options (all long names only):
 Implement helpers with clear, testable responsibilities:
 
 * `load_api_prompt(path)`: returns the node dictionary described above.
-* `parse_axis_spec(spec)` → `(node_id, input_name)` and validates the pattern.
-* `coerce_token(token, as_type)`, `read_values_file(path, as_type, axis_name)` – include good diagnostics, honour `--verbose`.
+* `parse_axis_spec(spec)` â†’ `(node_id, input_name)` and validates the pattern.
+* `coerce_token(token, as_type)`, `read_values_file(path, as_type, axis_name)` â€“ include good diagnostics, honour `--verbose`.
 * `safe_value_str(value)` and `build_segments(axis_specs, axis_values)` to create the segments string using the override rules.
-* `set_input_literal(prompt_dict, node_id, input_name, value)` – ensure the node and inputs mapping exist or raise.
-* `post_prompt(server, payload_dict, client_id)` – wraps the HTTP POST.
+* `set_input_literal(prompt_dict, node_id, input_name, value)` â€“ ensure the node and inputs mapping exist or raise.
+* `post_prompt(server, payload_dict, client_id)` â€“ wraps the HTTP POST.
 * `ensure_dir(path)` (if needed) must **not** create the images folder prematurely; only use for other utility tasks.
 * `list_files(path)` returns only filenames (not directories). Handle missing directory gracefully.
-* `cleanup_folder(images_folder, expected_filenames, verbose)` – skip creation, remove unknown files only.
+* `cleanup_folder(images_folder, expected_filenames, verbose)` â€“ skip creation, remove unknown files only.
 
 ### 7. Logging & Errors
 * Validation errors must clearly describe the failing option, file, or axis, then exit with status 1.
 * `--verbose` should print informative lines such as reads, counts, cleanup removals, and skip notices.
-* Standard output lines should be concise and aligned with behavior in the existing script (plan summary, `[DRY] …`, `[SKIP] …`, `[OK] …`, final “Done. Enqueued X prompts …” message).
+* Standard output lines should be concise and aligned with behavior in the existing script (plan summary, `[DRY] â€¦`, `[SKIP] â€¦`, `[OK] â€¦`, final â€œDone. Enqueued X prompts â€¦â€ message).
 
 ### 8. Libraries
 Only use: `argparse`, `copy`, `itertools`, `json`, `os`, `re`, `sys`, `uuid`, and `urllib.request` / `urllib.error`. Do not import `pathlib` or third-party modules.
@@ -106,3 +106,4 @@ General Implementation Notes
 * Handle unexpected workflow structures or missing nodes with immediate exits.
 
 Follow this specification literally so a user can paste the generated script into ComfyParamVisualizer without further edits.
+

@@ -1,6 +1,6 @@
-Prompt for ChatGPT 5 — Recreate `make_axis_grid_viewer.py`
+﻿Prompt for ChatGPT 5 â€” Recreate `make_axis_grid_viewer.py`
 ===========================================================
-
+  * renderGrid() obtains desired filenames, calls ensureStructure, then updates all <img> elements (set `decoding = "async"` before assigning `src`). When images load, compute natural dimensions; if scale mode is `auto` and X is active, recompute the auto-fit scale; always apply the current scale to set image widths in pixels.
 Objective
 ---------
 Generate a **single Python file** named `make_axis_grid_viewer.py` that produces the axis-grid HTML viewer described below. The implementation must use only the Python standard library, target Python 3.8+, start with a Unix shebang, and finish with `if __name__ == "__main__": main()`. Output the code only.
@@ -41,15 +41,21 @@ PNG Filename Parsing
   * Otherwise sort lexicographically by key.
 * Build:
   * `dim_values`: list of lists containing `{ "k": key, "d": display }`.
-  * `lookup`: map of `"k0|k1|...|kN"` → original filename.
+  * `lookup`: map of `"k0|k1|...|kN"` â†’ original filename.
 
 HTML Output Requirements
 ------------------------
 
-* Viewer operates in **lazy-load mode only** — no base64 embedding.
+* Viewer operates in **lazy-load mode only** â€” no base64 embedding.
 * Generate image URLs **relative** to the output HTML location (use POSIX separators). Do **not** emit `file://` URIs.
 * `<title>` and header `<h1>` must both read `ComfyParamVisualizer`.
 * Theme toggle stored in `localStorage` under `"viewer_theme"`, honouring the system preference on first visit.
+* Theme toggle stored in `localStorage` under `"viewer_theme"`, honouring the system preference on first visit.
+
+* Add a `Size` slider next to the Theme button:
+  * Range 1%–200%.
+  * Defaults to the auto-fit scale when X is active; updates percent label.
+  * Styled to respect light/dark theme (same track/thumb look as sliders).
 * Empty metadata block (provide `<div class="meta"></div>` with no text).
 * Slider UI layout:
   * Each row contains: `[lock checkbox][label (right-aligned)][value bubble + slider][axis select]`.
@@ -60,15 +66,16 @@ HTML Output Requirements
 * Axis select dropdown allows values `"none"`, `"x"`, `"y"`. At most one dimension can own each axis; disabled options should reflect ownership without auto-reassigning other axes.
 * Lock checkbox disables its slider even if the axis is released.
 * Canvas is replaced by a grid layout:
-  * `.grid` uses CSS Grid with 10px gaps, `minmax(256px, 1fr)` columns, and `object-fit: contain; width: 100%; background: #000;` on images.
-  * Grid width spans the viewport; horizontal scroll should appear when X has many values.
-  * Headers (row/column) use `.hdr` elements; no filenames or “Grid:” text anywhere.
-* Modes:
-  * **Single**: no X/Y axes; allocate one image cell and use `fitSingleImage()` to clamp height to the viewport (`window.innerHeight - top - 24`, min 100px). Re-run on resize (once per change).
-  * **X axis**: headers along top row.
-  * **Y axis**: headers along first column.
-  * **X + Y axes**: full matrix with headers on top row and first column.
-* Flicker-free updates:
+* Canvas is replaced by a grid layout:
+  * `.grid` uses CSS Grid with 10px gaps. Columns are defined with the first column sized as `max-content` (Y labels), and the remaining X-image columns set to `auto`.
+  * Images use `object-fit: contain; background: #000;` and their width is set in pixels by JS according to a scale factor.
+  * Default behavior auto-fits all X columns to avoid horizontal scrolling (capped at 100% scale). A size slider lets the user override from 1% to 200%.
+  * Maintain `curStruct = { mode, xLen, yLen }` and rebuild the DOM only when structure changes.
+===========================================================
+  * Scaling: when `scaleMode` is `auto` and X is active, recompute the scale on load/resize to fit all X columns (<=100%). In `user` mode, never change scale automatically.
+  * **X axis**: headers along top row; Y header column remains at the far left.
+  * **Y axis**: headers along the first (left) column only.
+  * **X + Y axes**: full matrix with headers on top row and a single Y header column at left.
   * Maintain `curStruct = { mode, xLen, yLen }` and rebuild the DOM only when structure changes.
   * For every render, iterate existing `<img>` nodes and update `src`/`href` in place. Missing filenames should clear `src` and remove the anchor `href`.
 
@@ -100,7 +107,7 @@ Essential helper behaviour:
 * `ensureStructure(hasX, hasY, xLen, yLen)` rebuilds DOM only when necessary. Use `.hdr` cells for headers and `.cell` divs containing `<a><img></a>` for images.
 * `desiredFilenames(...)` returns the list of filenames in row-major order for the current structure.
 * `renderGrid()` obtains desired filenames, calls `ensureStructure`, then updates all `<img>` elements (set `decoding = "async"` before assigning `src`).
-* `fitSingleImage()` caps the single image’s height to the available space.
+* `fitSingleImage()` caps the single imageâ€™s height to the available space.
 
 CSS Requirements
 ----------------
