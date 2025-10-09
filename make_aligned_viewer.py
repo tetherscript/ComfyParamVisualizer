@@ -244,8 +244,8 @@ h1{margin:0;font-size:1.05rem;font-weight:600;}
 .value-bubble{font-size:0.85rem;color:var(--muted);}
 #filename{text-align:center;font-size:0.85rem;opacity:0.7;margin:8px 0 6px 0;word-break:break-all;}
 #filename a{color:inherit;text-decoration:underline;}
-#canvas-wrap{display:flex;justify-content:center;padding-bottom:10px;}
-canvas{border:1px solid var(--border);background:#000;max-width:95vw;height:auto;}
+#canvas-wrap{display:flex;justify-content:center;padding:0 16px 16px 16px;}
+canvas{border:1px solid var(--border);background:#000;display:block;}
 /* Slider base */
 input[type=range]{width:240px;height:26px;background:transparent;}
 /* WebKit */
@@ -313,11 +313,40 @@ const imgs={
   }
 };
 
+// Track current natural image size
+let natW=0, natH=0;
+
+// Compute scaled canvas size to fit viewport with 16px L/R/B margins, no upscaling
+function sizeCanvasFor(nw, nh){
+  const MLR = 16; // left/right margin
+  const MB = 16;  // bottom margin
+  const availW = Math.max(1, window.innerWidth - (MLR*2));
+  const anchor = document.getElementById("filename");
+  const bottomOfHeader = anchor.getBoundingClientRect().bottom; // px from top
+  const availH = Math.max(1, window.innerHeight - bottomOfHeader - MB);
+  const scale = Math.min(1, availW / nw, availH / nh);
+  const sw = Math.max(1, Math.floor(nw * scale));
+  const sh = Math.max(1, Math.floor(nh * scale));
+  if (canvas.width !== sw || canvas.height !== sh){
+    canvas.width = sw;
+    canvas.height = sh;
+  }
+}
+
+// Redraw current image to fit
+function redrawCurrent(){
+  if (!currentImg) return;
+  sizeCanvasFor(natW, natH);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(currentImg, 0, 0, canvas.width, canvas.height);
+}
+
 // Initialize after first image is ready
 function initAfterFirstImage(w,h){
-  canvas.width=w; canvas.height=h;
-  buildUI(); resizeCanvas(); updateImage();
-  window.addEventListener("resize",resizeCanvas);
+  natW=w; natH=h;
+  sizeCanvasFor(natW, natH);
+  buildUI(); updateImage();
+  window.addEventListener("resize",redrawCurrent);
 }
 
 // Load one arbitrary image to size the canvas
@@ -348,6 +377,7 @@ function buildUI(){
 function key(){return curIdx.map((v,d)=>data.dim_values[d][v].k).join("|");}
 
 let currentUrl=null;
+let currentImg=null;
 function updateImage(){
   const fname=data.lookup[key()];
   if(!fname){ fnameLink.textContent="No match"; fnameLink.removeAttribute("href"); currentUrl=null; return; }
@@ -364,8 +394,12 @@ function updateImage(){
 }
 
 function drawAndLink(im, url, fname){
+  currentImg = im;
+  natW = im.naturalWidth || im.width;
+  natH = im.naturalHeight || im.height;
+  sizeCanvasFor(natW, natH);
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(im,0,0);
+  ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
   currentUrl=url;
   fnameLink.textContent=fname;
   fnameLink.href=url;
@@ -377,10 +411,6 @@ document.getElementById("canvas").addEventListener("contextmenu",e=>{
   if(currentUrl) window.open(currentUrl,"_blank","noopener,noreferrer");
 });
 
-function resizeCanvas(){
-  const h=window.innerHeight-document.getElementById("sliders").getBoundingClientRect().bottom-10;
-  canvas.style.maxHeight=Math.max(120,h)+"px";
-}
 </script>
 </body>
 </html>

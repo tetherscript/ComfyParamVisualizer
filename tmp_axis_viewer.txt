@@ -669,7 +669,7 @@ window.addEventListener("resize", () => {
 });
 
 buildUI();
-renderGrid();
+renderGrid();\n  const yDim = axis.indexOf("y");\r\n  const hasX = xDim !== -1;\r\n  if(hasX && natW>0){ computeAutoScale(data.dim_values[xDim].length); applyScaleToImages(); }\r\n  else if(xDim===-1 && yDim===-1){ fitSingleImage(); }\r\n});\r\n
 </script>
 </body>
 </html>
