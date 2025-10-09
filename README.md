@@ -130,6 +130,7 @@ We need to tell it exactly which node property values to use:
 50
 ```
 Open the 0-gen_images.bat
+Edit as needed.  Then run it.
 ```
 pushd "%~dp0"
 
@@ -150,7 +151,8 @@ Note: the --save-target could also be:
 --save-target 10:value:SampleImageDemo
 ```
 which dumps the filename_prefix into any node that can accept a string. In this case it is a String primitive node, which in turn is used to set the filename_prefix of a Save Image node.  By setting this one node, the workflow can re-use this single string node to set the filename_prefix in multiple nodes, like when you save a video, and also a single frame from that video to be used as a thumbnail, both with the same filename, but different extensions.  This is needed to view videos in the html viewers.
-  
+![filename_prefix](https://github.com/user-attachments/assets/eddc07aa-3f90-4955-b57b-eecb33e28417)
+
 
 # 5. Generate the axis grid viewer html file
 Edit `2 - gen_axis_grid_viewer.bat` and point it to your workflow file (not the api one).
