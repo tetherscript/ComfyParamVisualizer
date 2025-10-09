@@ -8,10 +8,10 @@
 #   --v 38-text.txt   --as string-> reads <basepath>/params/38-text.txt;  applies to node 38, input 'text'
 #
 # Save target:
-#   --save-target 9:filename_prefix.txt
-#     -> reads <basepath>/params/9-filename_prefix.txt for <prefix_text>
-#     -> sets node 9's filename_prefix to:
-#        "<prefix_text>__<nodeId>-<prop>-<val>--<nodeId>-<prop>-<val>..."
+#   --save-target <nodeId>:<param>:<subfolder>
+#     -> uses <subfolder> as the base token for the images folder
+#     -> sets the specified node's input <param> to:
+#        "<subfolder>/<nodeId>-<prop>-<val>--<nodeId>-<prop>-<val>..."
 #        (floats keep a decimal point, then '.' becomes '_')
 #
 # Cleanup + Resume:
@@ -127,34 +127,23 @@ def read_values_file(path, as_type, axis_name, verbose=False):
 
 # -------------------- Save-target / prefix text --------------------
 
+_save_target_re = re.compile(r"^(?P<nid>\d+):(?P<input>[A-Za-z0-9_]+):(?P<folder>.+)$")
+
 def parse_save_target(arg):
     """
-    '9:filename_prefix.txt' -> ('9', 'filename_prefix.txt')
-    We will read <basepath>/params/9-filename_prefix.txt
+    '<nodeId>:<param>:<subfolder>' -> (node_id, param, subfolder)
     """
-    if ":" not in arg:
-        raise ValueError("--save-target must look like '<nodeId>:filename_prefix.txt'")
-    left, right = arg.split(":", 1)
-    left = left.strip()
-    right = right.strip()
-    if not left.isdigit():
+    m = _save_target_re.match(arg.strip())
+    if not m:
+        raise ValueError("--save-target must look like '<nodeId>:<param>:<subfolder>' (e.g. '9:filename_prefix:MyImages')")
+    nid = m.group("nid").strip()
+    inp = m.group("input").strip()
+    folder = m.group("folder").strip()
+    if not nid.isdigit():
         raise ValueError("Left side of --save-target must be a numeric node id.")
-    if right != "filename_prefix.txt":
-        raise ValueError("Right side of --save-target must be 'filename_prefix.txt'.")
-    return left, right
-
-def read_prefix_text(basepath_params, node_id, verbose=False):
-    path = os.path.join(basepath_params, "%s-filename_prefix.txt" % node_id)
-    if verbose:
-        print("[INFO] Reading filename_prefix from %s" % path)
-    if not os.path.isfile(path):
-        raise FileNotFoundError("Prefix file not found: %s" % path)
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-    text = content.strip()
-    if not text:
-        raise ValueError("Prefix file %s is empty." % path)
-    return text
+    if not folder:
+        raise ValueError("Subfolder part in --save-target must be non-empty.")
+    return nid, inp, folder
 
 # -------------------- Filename segment builders --------------------
 
@@ -249,10 +238,10 @@ def main():
                          "Repeat per axis. One of: auto, int, float, string. "
                          "If omitted for an axis, defaults to auto.")
 
-    # Save target: EXACTLY one, "nodeId:filename_prefix.txt"
+    # Save target: EXACTLY one, "<nodeId>:<param>:<subfolder>"
     ap.add_argument("--save-target", required=True,
-                    help="Target SaveImage node and prefix file spec, e.g. '9:filename_prefix.txt'. "
-                         "Reads '<basepath>/params/9-filename_prefix.txt' for the base filename prefix.")
+                    help=("Target node, input, and base subfolder, e.g. '9:filename_prefix:SampleImageDemo'. "
+                          "The script sets that node's input to '<subfolder>/<segments>' for each permutation."))
 
     ap.add_argument("--dry-run", action="store_true", help="Do not POST; just print plan and cleanup actions.")
     ap.add_argument("--verbose", action="store_true", help="Verbose logging.")
@@ -281,12 +270,11 @@ def main():
         print("Error loading workflow API from '%s': %s" % (workflow_api_path, str(e)), file=sys.stderr)
         sys.exit(1)
 
-    # Parse save-target and read prefix token
+    # Parse save-target and get prefix token
     try:
-        save_node_id, _ = parse_save_target(args.save_target)
-        prefix_folder = read_prefix_text(base_params, save_node_id, verbose=args.verbose)
+        target_node_id, target_param, prefix_folder = parse_save_target(args.save_target)
         if args.verbose:
-            print("[INFO] Prefix token (from %s-filename_prefix.txt) = '%s'" % (save_node_id, prefix_folder))
+            print("[INFO] Prefix token = '%s' (node %s, input '%s')" % (prefix_folder, target_node_id, target_param))
     except Exception as e:
         print("Error in --save-target: %s" % str(e), file=sys.stderr)
         sys.exit(1)
@@ -416,11 +404,11 @@ def main():
         clean_prefix = prefix_folder.rstrip("/\\")
         filename_prefix = "%s/%s" % (clean_prefix, segments) if clean_prefix else segments
 
-        # Set ONLY on the specified SaveImage node
+        # Set ONLY on the specified target node and input
         try:
-            set_input_literal(prompt, save_node_id, "filename_prefix", filename_prefix)
+            set_input_literal(prompt, target_node_id, target_param, filename_prefix)
         except Exception as e:
-            print("[ERR] save-target set failed on node %s: %s" % (save_node_id, str(e)), file=sys.stderr)
+            print("[ERR] save-target set failed on node %s input '%s': %s" % (target_node_id, target_param, str(e)), file=sys.stderr)
             sys.exit(1)
 
         tag = " ".join(log_parts) if log_parts else "(no axes set)"

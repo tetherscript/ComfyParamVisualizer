@@ -81,7 +81,6 @@ Grab a copy of this repo.
     /params
       3-cfg.txt - param values
       3-steps.txt - param values
-      9-filename_prefix.txt - use this to specify an /output/subfolder for the generated images
       /images *copy the generated images here before creating the viewer
         *.png
         *.html - the viewer files you will generate
@@ -130,32 +129,8 @@ We need to tell it exactly which node property values to use:
 40
 50
 ```
-
-- Nodeid 9 is the Save Image node, and we'll use that to specify the /output/subfolder in which the generated images will be placed.  Go to \SimpleImageDemo\params folder and edit:
-9-filename_prefix.txt
+Open the 0-gen_images.bat
 ```
-SampleImageDemo
-```
-
-NOTE: If the image generation fails due to ComfyUI crashing (usually due to a bad combination of parameters it really doesn't like), the next time you try to generate images it will try to resume where it left off so you don't have to start completely over.
-
-> [!TIP]
-> When you generate images, it will look in ComfyParamVisualizer\SimpleImageDemo\params\images to see if the image already exists.  If it exists, it will skip it.  So for a full regeneration, remove all .pngs and .html files from this folder.
-
-### gen_images.py parameters (from ChatGPT5Prompt_for_gen_images_py.txt).
-- `--server` (default `http://127.0.0.1:8188`)
-- `--client-id` (optional; default to a freshly generated UUID4 string)
-- Axis specifiers (all optional except `--s` and `--t`, which are **required**): `--s`, `--t`, `--u`, `--v`, `--x`, `--y`, `--z`
-- `--as` (repeatable): consumed in global axis order (`s, t, u, v, x, y, z`) for each **provided** axis. Accept values `auto`, `int`, `float`, `string`, or `str` (treat `str` as `string`). If a provided axis has no corresponding `--as`, default to `auto`.
-- `--save-target` (required): `<nodeId>:filename_prefix.txt`. Read `<basepath>/params/<nodeId>-filename_prefix.txt` to get the folder token (trimmed). This node **must** exist and is the only SaveImage node whose `filename_prefix` the script may modify.
-- `--dry-run` (flag): perform all planning, logging, and cleanup reporting without performing any HTTP requests.
-- `--verbose` (flag): enables detailed logging (axis file reads, value counts, cleaned/ skipped files, assignments, etc.).
-
-Now edit the image generation batch file to list the dimensions, data types and save target node.
-- Go to `\SimpleImageDemo` and edit `0 - gen_images.bat`:
-```
-@echo off
-setlocal
 pushd "%~dp0"
 
 python "..\gen_images.py" ^
@@ -164,128 +139,18 @@ python "..\gen_images.py" ^
   --server http://127.0.0.1:8188 ^
   --s 3-cfg.txt --as float ^
   --t 3-steps.txt --as int ^
-  --save-target 9:filename_prefix.txt ^
+  --save-target 9:filename_prefix:SampleImageDemo ^
   --verbose
 
 popd
 PAUSE
 ```
-Now run `0 - gen_images.bat` and you should see output similar to:
+Note: the --save-target could also be: 
 ```
-[INFO] Reading filename_prefix from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\9-filename_prefix.txt
-[INFO] Prefix token (from 9-filename_prefix.txt) = 'SampleImageDemo'
-[INFO] Axis s: reading values from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\3-cfg.txt (type=float)
-[INFO] Axis s: 3 values loaded
-[INFO] Axis s -> node 3, input 'cfg', count=3
-[INFO] Axis t: reading values from D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\3-steps.txt (type=int)
-[INFO] Axis t: 4 values loaded
-[INFO] Axis t -> node 3, input 'steps', count=4
-[INFO] Images folder D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\images\SampleImageDemo does not exist; skipping cleanup.
-Planned permutations: 3 * 4 * 1 * 1 * 1 * 1 * 1 = 12
-[OK]  s=8.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-20)
-[OK]  s=8.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-30)
-[OK]  s=8.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-40)
-[OK]  s=8.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-8_0--3-steps-50)
-[OK]  s=9.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-20)
-[OK]  s=9.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-30)
-[OK]  s=9.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-40)
-[OK]  s=9.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-9_0--3-steps-50)
-[OK]  s=10.0 t=20 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-20)
-[OK]  s=10.0 t=30 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-30)
-[OK]  s=10.0 t=40 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-40)
-[OK]  s=10.0 t=50 -> queued (prefix=SampleImageDemo/3-cfg-10_0--3-steps-50)
-Done. Enqueued 12 prompts to http://127.0.0.1:8188. Images folder: D:\VSCODE\2\ComfyParamVisualizer\SimpleImageDemo\params\images\SampleImageDemo
-Press any key to continue . . .
+--save-target 10:value:SampleImageDemo
 ```
-
-Want a rehearsal without generating anything? Add `--dry-run` to the batch file to preview the plan, cleanup actions, and sample filenames before posting prompts to ComfyUI.
-
-This is good.  You may see 'path not found' kind of errors, so check your paths in the .bat again if that happens.
-
-Meanwhile, your ComfyUI console shows this:
-```
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-got prompt
-model weight dtype torch.float16, manual cast: None
-model_type EPS
-Using pytorch attention in VAE
-Using pytorch attention in VAE
-VAE load device: cuda:0, offload device: cpu, dtype: torch.bfloat16
-CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16
-Requested to load SD1ClipModel
-loaded completely 13549.8 235.84423828125 True
-Requested to load BaseModel
-loaded completely 13265.83067779541 1639.406135559082 True
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:01<00:00, 12.12it/s]
-Requested to load AutoencoderKL
-loaded completely 11354.61699295044 159.55708122253418 True
-Prompt executed in 4.05 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 30/30 [00:01<00:00, 17.86it/s]
-Prompt executed in 1.96 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:02<00:00, 17.53it/s]
-Prompt executed in 2.56 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 50/50 [00:02<00:00, 17.55it/s]
-Prompt executed in 3.13 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:01<00:00, 18.62it/s]
-Prompt executed in 1.34 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 30/30 [00:01<00:00, 17.79it/s]
-Prompt executed in 1.95 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:02<00:00, 17.63it/s]
-Prompt executed in 2.53 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 50/50 [00:02<00:00, 17.52it/s]
-Prompt executed in 3.12 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:01<00:00, 18.57it/s]
-Prompt executed in 1.34 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 30/30 [00:01<00:00, 17.94it/s]
-Prompt executed in 1.93 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 40/40 [00:02<00:00, 17.69it/s]
-Prompt executed in 2.54 seconds
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 50/50 [00:02<00:00, 17.47it/s]
-Prompt executed in 3.13 seconds
-```
-
-*Don't you wish all image generations were that fast? Omg.*
-
-The generated pngs are now in 
-
-```ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\output\SampleImageDemo```
-
-Copy these images to your repo folder 
-
-```ComfyParamVisualizer\SimpleImageDemo\params\images```
-
-# 4. Generate the aligned viewer html file
-You are almost there! Edit `1 - gen_aligned_viewer.bat` and point it to your workflow file (not the api one).
-```
-@echo off
-setlocal
-pushd "%~dp0"
-
-python "..\make_aligned_viewer.py" ^
-  --workflow "simple_image1.json"
-
-popd
-PAUSE
-```
-
-Now run `1 - gen_aligned_viewer.bat` and it will create `params/images/0000_aligned_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
-
-<img width="759" height="565" alt="image" src="https://github.com/user-attachments/assets/22deb2d5-e9a1-4c33-a7f8-42b96ca21a0c" />
-
-- Each NodeNameOrTitle:NodeID:Property has a slider for the values you included in the param .txt file.
-- Check the checkbox on the left to lock the slider so you don't accidentally change the value.
-- Move the sliders and see the changes to your image. Enjoy!
-
+which dumps the filename_prefix into any node that can accept a string. In this case it is a String primitive node, which in turn is used to set the filename_prefix of a Save Image node.  By setting this one node, the workflow can re-use this single string node to set the filename_prefix in multiple nodes, like when you save a video, and also a single frame from that video to be used as a thumbnail, both with the same filename, but different extensions.  This is needed to view videos in the html viewers.
+  
 
 # 5. Generate the axis grid viewer html file
 Edit `2 - gen_axis_grid_viewer.bat` and point it to your workflow file (not the api one).

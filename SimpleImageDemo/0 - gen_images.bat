@@ -8,7 +8,7 @@ python "..\gen_images.py" ^
   --server http://127.0.0.1:8188 ^
   --s 3-cfg.txt --as float ^
   --t 3-steps.txt --as int ^
-  --save-target 9:filename_prefix.txt ^
+  --save-target 10:value:SampleImageDemo ^
   --verbose
 
 popd
