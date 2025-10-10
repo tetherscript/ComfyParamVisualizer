@@ -161,7 +161,29 @@ Generating video files that can be displayed in the viewer requires that you gen
 From the SimpleImageDemo workflow
 <img width="1715" height="1650" alt="image" src="https://github.com/user-attachments/assets/5404d0dc-a1b1-43c0-8cfa-37ff8f8d89e2" />
 
-## 5. Generate the axis grid viewer html file
+
+
+
+## 5. Generate the aligned viewer html file
+Edit `1 - gen_aligned_viewer.bat` and point it to your workflow file (not the api one).
+```
+@echo off
+setlocal
+pushd "%~dp0"
+
+python "..\make_aligned_viewer.py" ^
+  --workflow "simple_image1.json"
+
+popd
+PAUSE
+
+```
+Now run `1 - gen_aligned_viewer.bat` and it will create `params/images/0000_aligned_viewer.html`.  Open that HTML file in your browser (double-click it) and you will see:
+<img width="1875" height="1152" alt="image" src="https://github.com/user-attachments/assets/7bd5c4cb-1f73-4ecd-8cda-0572078d3247" />
+
+Scrub the sliders to see the effect on the image.
+
+## 6. Generate the axis grid viewer html file
 Edit `2 - gen_axis_grid_viewer.bat` and point it to your workflow file (not the api one).
 ```
 @echo off
@@ -179,7 +201,7 @@ Now run `2 - gen_axis_grid_viewer.bat` and it will create `params/images/0000_ax
 
 Just select the sliders to use as the X and Y axis.  If there were more than two sliders, you could still scrub the non-axis sliders, causing the XY plot to regenerate as you scrub.  We put this in a separate viewer because only using it for scrubbing can cause some flickering/redraw issues on some browsers.  
 
-## 6. Complete
+## 7. Complete
 
 That's it! Rinse, repeat with your favorite workflow.  Crush that GPU.  Rejoice in knowing a bit more about how all those workflow parameters affect your images.
 
