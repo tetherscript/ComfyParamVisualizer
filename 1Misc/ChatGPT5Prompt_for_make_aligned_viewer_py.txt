@@ -1,112 +1,105 @@
-Prompt for ChatGPT 5 — Recreate `make_aligned_viewer.py`
-=========================================================
+Prompt for ChatGPT 5 — Recreate make_aligned_viewer.py
+======================================================
 
 Goal
 ----
-Produce a **single stdlib-only Python 3 script** named `make_aligned_viewer.py` that generates the aligned image viewer HTML exactly as documented below. The script must target Python 3.8+, include a Unix shebang, and end with `if __name__ == "__main__": main()`. Output only the code.
+Produce a single stdlib-only Python 3 script named make_aligned_viewer.py that generates the aligned image/video viewer HTML exactly as documented below. Target Python 3.8+, include a Unix shebang, and end with:
+  if __name__ == "__main__":
+      main()
+Return only the code.
 
-Command-Line Interface
-----------------------
-Use `argparse` with optional flags only:
+CLI
+---
+Use argparse with optional flags only:
+- --images  default: <base>/params/images  (directory with poster PNGs and optional MP4s)
+- --workflow default: <base>/simple_image1.json (ComfyUI workflow JSON for node titles)
+- -o/--output default: <images>/0000_aligned_viewer.html
+- --base default: . (base directory used to resolve relative paths)
 
-| Option        | Default                       | Description |
-|---------------|-------------------------------|-------------|
-| `--images`    | `<base>/params/images`        | Root folder that contains the PNG set. |
-| `--workflow`  | `<base>/simple_image1.json`   | ComfyUI workflow JSON exported from the UI (node metadata). |
-| `-o/--output` | `<images>/0000_aligned_viewer.html` | Destination HTML file. Create parent dirs as needed. |
-| `--base`      | `.`                           | Base directory used to resolve relative paths for the above. |
+Accept legacy positional arguments [image_dir workflow output] in order to fill missing options. Reject more than three. Resolve all paths with Path(...).resolve(). Ensure the images directory exists and workflow JSON is readable; otherwise exit with a clear error message (status 1).
 
-All options accept relative paths (resolved against `base`). Emit helpful errors (exit with status 1) when directories/files do not exist or are invalid.
+Workflow titles
+---------------
+Parse the workflow JSON which may be one of: {"nodes": {...}}, {"nodes": [...]}, or a bare list. Create a dict id->node. The display title for a node id is chosen with priority: title, then label, then type, else "Node <id>".
 
-Accept **legacy positional arguments** for backward compatibility: `[image_dir workflow output]` in that exact order. If any of these positional arguments are provided, they fill the corresponding missing option values. Reject extra positional arguments beyond three.
-
-Input Validation
-----------------
-
-* Resolve every supplied path via `Path(...).resolve()` before use.
-* `--images` must point to an existing directory.
-* `--workflow` must be a readable JSON file that contains either:
-  * `{ "nodes": { id: node, ... } }`, or
-  * `{ "nodes": [node, ...] }`, or
-  * `[node, ...]`
-* When multiple shapes are possible, always end with a dictionary keyed by node IDs (integers) to node objects. Select node labels by priority: `title`, then `label`, then `type`, else `"Node <id>"`.
-
-PNG File Requirements
----------------------
-
-* Consider only files with `.png` extension (case-sensitive is fine).
-* Filenames encode dimensions using `--` as a separator. Each segment must match `<nodeId>-<prop>-<valueToken>`, where:
-  * `nodeId` is decimal digits.
-  * `prop` matches `[A-Za-z0-9_]+`.
-  * `valueToken` may contain underscores.
-* Strip trailing counters such as `_00001` or `_00001_` via regex `r"^(.*?)(_+\d+_?)$"` if group 1 is non-empty.
-* After stripping, replace `_` with `.` to create a dotted representation. If it parses as `float`, treat it as numeric (store both numeric value and display string with the decimal point). Otherwise treat as non-numeric and use the original token for both key and display.
-* All images must share the same dimension count and identical `(nodeId, prop)` signature. If not, exit with an error.
-* Sort dimension values: numeric dimensions by `(numeric_value, key)`; non-numeric lexicographically. Build:
-  * `dim_values`: ordered list per dimension of `{ "k": key, "d": display }`.
-  * `lookup`: map `"k0|k1|...|kN"` → `filename` (with extension).
-
-HTML/JS Output Requirements
+Filename parsing and keying
 ---------------------------
+Both .png (posters) and .mp4 (videos) share the same filename schema. Filenames consist of segments separated by "--". Each segment is:
+  <nodeId>-<prop>-<valueToken>
+- nodeId is decimal digits
+- prop matches [A-Za-z0-9_]+
+- valueToken may contain underscores
 
-* Always generate **lazy-load** HTML—never embed base64 images.
-* Generate relative URLs: compute `image_urls` as paths from the output directory to each PNG (POSIX separators). Do **not** use `file://`.
-* The HTML `<title>` and header `<h1>` must read **"ComfyParamVisualizer"**.
-* Theme toggle (`Theme` button) persists in `localStorage` under key `"viewer_theme"`. Respect system preferences on first load.
-* UI layout:
-  * Container width max 980px, centered with modest padding.
-  * Each dimension renders a slider row: `[lock checkbox][label right-aligned][value bubble + range input]`.
-  * Slider labels use the format `"Title:nodeId:property"`.
-  * Value bubble shows the current display value (`dim_values[i][index]["d"]`).
-  * Slider width scales with option count: `sliderWidth(n) = min(680, max(140, 140+(n-2)*36))`.
-  * Range inputs:
-    - Base width 240px, track height 6px, accent color from CSS variable.
-    - Thumb is a 24px circle (26px on hover) to improve mouse targeting.
-  * Include a filename section under the sliders showing the current PNG as a clickable link.
-* Viewer canvas renders the image; contextmenu on canvas should open the current PNG in a new tab (`window.open`) without altering the page state.
-* Maintain a 64-image LRU cache on the client to speed up switching.
-* Image scaling:
-  - Never upscale above 100% of the image's natural size.
-  - When the image would overflow the viewport, scale it down to fit without requiring browser scrolling.
-  - Leave a 16px margin on the left, right, and bottom sides of the image area.
-  - Recompute scale on window resize.
+Strip trailing counters like _00001 or _00001_ using regex r"^(.*?)(_+\d+_?)$" if group 1 is non-empty. After stripping, form a dotted token by replacing '_' with '.'. If float(dotted) succeeds, it is numeric; store the numeric value and display string using the dotted form. Otherwise treat as non-numeric and use the raw stripped token as both key and display.
 
-* JavaScript flow:
-  * Preload nodes/dimensions from `meta_json`.
-  * Load one sample image to set canvas dimensions; fall back to 512×512 if loading fails.
-  * Build sliders dynamically with lock checkboxes (disabled slider when locked).
-  * Track the current index array (`curIdx`) and locked state array (`locked`).
-  * `updateImage()` should change the canvas and filename link only when the actual filename changes; reuse cached Image instances when possible.
-  * Right-click on the canvas opens `currentUrl` in a new tab (if available).
+Dimension set and ordering (from PNGs)
+--------------------------------------
+Only PNGs define the available values/dimensions. Enforce that all posters share the same number of segments and identical (nodeId, prop) signature. Error out if mismatched. For each dimension, collect values and order them:
+- If all values are numeric: sort by (numeric_value, key)
+- Otherwise: sort lexicographically by key
 
-* CSS & Styling:
-  * Use CSS variables for theme colors (light/dark); ensure all backgrounds, borders, and text respect them.
-  * Metadata row (`.meta`) remains but is empty (no absolute path text).
-  * Increase slider thumb size as specified for better usability.
+Build these structures:
+- dim_values: per-dimension ordered list of {"k": key, "d": display}
+- poster_lookup: map "k0|k1|...|kN" -> poster filename (.png)
+- video_lookup: map "k0|k1|...|kN" -> video filename (.mp4) only for keys that have a video (omit otherwise)
 
-Implementation Constraints
+HTML meta payload
+-----------------
+Emit a meta JSON object with exactly these fields (no absolute paths):
+- dim_values
+- poster_lookup
+- video_lookup
+- dim_labels: for each dimension "<NodeTitle>:<nodeId>:<prop>"
+- label_em: a float sizing the label column (compute as in code: based on max label length, clamped 8..60 em)
+- lazy: true
+- poster_urls: { poster filename -> POSIX-style relative URL from output dir }
+- video_urls: { video filename -> POSIX-style relative URL from output dir }
+
+HTML/CSS/JS layout
+------------------
+- Title and page header must be "ComfyParamVisualizer".
+- Theme toggle button stores preference in localStorage under "viewer_theme" and respects system dark mode on first load.
+- Container: max-width 980px; centered with light padding.
+- Slider rows: [lock checkbox][right-aligned label][value bubble + range input]. Slider width uses sliderWidth(n)=min(680,max(140,140+(n-2)*36)). Range styling: 6px track; 24px thumb (26px hover); accent color from CSS variables.
+- Filename area under sliders shows a link for the current media.
+- Image area: a centered <canvas> draws the current poster.
+- No base64 images: lazy load by URL when needed.
+
+Interactivity and behavior
 --------------------------
+- 64-image LRU cache for posters (Map-based LRU sufficient).
+- On load, pick any poster (e.g., first value of poster_lookup) to probe natural size and set canvas size. Fallback to 512x512 if probe fails.
+- Scaling rules for the canvas draw:
+  - Never upscale above natural size
+  - Fit inside viewport: available width = window.innerWidth - 32px; available height = window.innerHeight - distance to bottom - 16px
+  - Recompute on window resize and redraw current poster
+- updateImage():
+  - Build key from slider indices; stop/remove active video if any
+  - Look up poster filename via poster_lookup; load from cache or network; draw to canvas; set filename link to poster URL
+  - Set a boolean hasVideoCurrent if the key exists in video_lookup
+- Context menu (right-click) on the canvas opens the current poster in a new tab (window.open with noopener,noreferrer)
+- Click behavior (no on-canvas overlay):
+  - If hasVideoCurrent is true:
+    - Click plays video inline: create <video controls autoplay playsInline>, set poster to current poster URL, set src to video URL, size the element to the current canvas pixel dimensions, hide the canvas, and append the video element in its place
+    - Shift+click opens the video URL in a new tab instead of inline playback
+    - While playing, the filename link points to the video; when the video ends or sliders change, remove the video, show the canvas again, and restore the filename link to the poster
+  - If no video: clicks do nothing special (existing filename link and context menu remain)
 
-* Import only: `argparse`, `json`, `re`, `os`, `sys`, `uuid` (if needed, though current script doesn’t), `pathlib.Path`, `string.Template`.
-* Use `string.Template` for HTML—protect braces in JS/CSS by doubling or using `$` placeholders properly.
-* When writing the HTML:
-  * Ensure parent directories for `--output` exist (`mkdir(parents=True, exist_ok=True)`).
-  * After successful write, print:
-    1. `Generated HTML: <absolute_output_path>`
-    2. `Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.`
-* On any validation or runtime error, print a descriptive message to `stderr` and exit with status 1.
+Implementation constraints
+--------------------------
+- Stdlib only: argparse, json, re, os, sys, pathlib.Path, string.Template
+- Use string.Template to embed meta_json and label_em; produce POSIX relative paths with relpath_for_html()
+- Ensure output parent directory exists; on success print:
+  "Generated HTML: <abs_output_path>"
+  "Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them."
+- On any validation error: print a descriptive message and exit(1)
 
-Summary of Must-Match Behaviors
--------------------------------
+Must-match behaviors
+--------------------
+1) CLI defaults and legacy positional handling as specified
+2) PNGs define dimensions; MP4s are optional and keyed to the same parsed key (trailing counters ignored)
+3) JSON meta fields: poster_lookup, poster_urls, video_lookup, video_urls (when present)
+4) Canvas scales-to-fit without upscaling; redraws on resize
+5) Right-click opens poster; click plays inline when available; Shift+click opens video in new tab
+6) Title/header is exactly ComfyParamVisualizer; all URLs are relative
 
-1. CLI defaults (`--images`, `--workflow`, `--output`, `--base`) must mirror the table above.
-2. Legacy positional arguments are honored exactly once, in order, and capped at three entries.
-3. All image links inside the HTML are relative to the output file’s directory.
-4. The header/title show “ComfyParamVisualizer.”
-5. Slider thumb styling uses 24 px base / 26 px hover dimensions.
-6. The generated HTML contains no absolute host paths.
-7. The script is stdlib-only and structurally mirrors the functions outlined (`parse_args`, `strip_counter`, `parse_dimension_segment`, `parse_filename`, `load_node_titles`, `relpath_for_html`, `main`).
-
-Deliverable
------------
-Return only the Python source code for `make_aligned_viewer.py`. No additional commentary or markdown is permitted after the code block.

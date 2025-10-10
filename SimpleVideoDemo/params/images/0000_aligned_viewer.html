@@ -1,258 +1,4 @@
-#!/usr/bin/env python3
-# make_aligned_viewer.py (lazy-load only, no mode line)
-# Change: The viewer ALWAYS uses lazy-load, and the "Mode: Lazy-load images on demand"
-# line has been removed from the HTML. No base64 embedding occurs.
-# Everything else remains the same.
-
-import json
-import re
-import argparse
-from pathlib import Path
-import sys
-from string import Template
-import os
-
-def parse_args():
-    p = argparse.ArgumentParser(
-        description="ComfyUI compact ND viewer (lazy-load only, with theme toggle)."
-    )
-    p.add_argument(
-        "--images",
-        dest="image_dir",
-        default=None,
-        help="Path to folder of PNGs (default: <base>/params/images).",
-    )
-    p.add_argument(
-        "--workflow",
-        dest="workflow",
-        default=None,
-        help="Path to ComfyUI workflow JSON (default: <base>/simple_image1.json).",
-    )
-    p.add_argument(
-        "-o",
-        "--output",
-        dest="output",
-        default=None,
-        help="Path to output HTML (default: <images>/0000_aligned_viewer.html).",
-    )
-    p.add_argument(
-        "--base",
-        dest="basepath",
-        default=".",
-        help="Base directory for resolving relative paths (default: current directory).",
-    )
-    p.add_argument(
-        "legacy_args",
-        nargs="*",
-        help=argparse.SUPPRESS,
-    )
-    return p.parse_args()
-
-def strip_counter(token: str) -> str:
-    # remove optional trailing _00001 or _00001_
-    m = re.match(r"^(.*?)(_+\d+_?)$", token)
-    if m and m.group(1):
-        return m.group(1)
-    return token
-
-def parse_dimension_segment(seg: str):
-    parts = seg.split("-")
-    if len(parts) != 3:
-        return None
-    node_str, prop, val_token = parts
-    if not node_str.isdigit():
-        return None
-    node_id = int(node_str)
-    if not re.fullmatch(r"[A-Za-z0-9_]+", prop or ""):
-        return None
-    val_token = strip_counter(val_token)
-    dotted = val_token.replace("_", ".")
-    try:
-        vnum = float(dotted)
-        return node_id, prop, vnum, dotted, dotted
-    except ValueError:
-        if not re.fullmatch(r"[A-Za-z0-9_]+", val_token or ""):
-            return None
-        return node_id, prop, None, val_token, val_token
-
-def parse_filename(fname: str):
-    stem = Path(fname).stem
-    segs = stem.split("--")
-    dims = []
-    for seg in segs:
-        p = parse_dimension_segment(seg)
-        if p is None:
-            return None
-        dims.append(p)
-    return dims
-
-def load_node_titles(workflow_path: Path):
-    with open(workflow_path, "r", encoding="utf-8") as f:
-        wf = json.load(f)
-    titles = {}
-    def pick_title(node):
-        return (node.get("title")
-                or node.get("label")
-                or node.get("type")
-                or "Node %s" % node.get("id", "?"))
-    if isinstance(wf, dict) and "nodes" in wf:
-        nodes = wf["nodes"]
-        it = nodes.values() if isinstance(nodes, dict) else nodes
-        for node in it:
-            titles[int(node["id"])] = pick_title(node)
-        return titles
-    if isinstance(wf, list):
-        for node in wf:
-            titles[int(node["id"])] = pick_title(node)
-        return titles
-    raise ValueError("Unrecognized workflow JSON format.")
-
-def relpath_for_html(target: Path, base: Path) -> str:
-    """
-    Return a POSIX-style relative path from base -> target for embedding in HTML/JSON.
-    """
-    rel = os.path.relpath(target, base)
-    return rel.replace("\\", "/")
-
-def main():
-    args = parse_args()
-
-    basepath = Path(args.basepath).resolve()
-    if not basepath.is_dir():
-        sys.exit(f"Base path not found: {basepath}")
-
-    legacy = list(args.legacy_args or [])
-    image_arg = args.image_dir
-    workflow_arg = args.workflow
-    output_arg = args.output
-
-    if legacy:
-        if image_arg is None and len(legacy) >= 1:
-            image_arg = legacy[0]
-        if workflow_arg is None and len(legacy) >= 2:
-            workflow_arg = legacy[1]
-        if output_arg is None and len(legacy) >= 3:
-            output_arg = legacy[2]
-        if len(legacy) > 3:
-            sys.exit("Too many positional arguments supplied.")
-
-    def resolve_path(path_value, default_path):
-        if path_value is None:
-            return default_path
-        p = Path(path_value)
-        if not p.is_absolute():
-            p = basepath / p
-        return p
-
-    img_dir = resolve_path(image_arg, basepath / "params" / "images").resolve()
-    wf_path = resolve_path(workflow_arg, basepath / "simple_image1.json").resolve()
-    out_html = resolve_path(output_arg, img_dir / "0000_aligned_viewer.html").resolve()
-    out_base = out_html.parent
-    out_base.mkdir(parents=True, exist_ok=True)
-
-    if not img_dir.is_dir():
-        sys.exit(f"Image directory not found: {img_dir}")
-    if not wf_path.is_file():
-        sys.exit(f"Workflow JSON not found: {wf_path}")
-
-    node_titles = load_node_titles(wf_path)
-
-    images = []
-    dim_signature = None
-    dim_count = None
-    dim_info = []
-    # Track posters and videos by dimension key string
-    posters_by_key = {}
-    videos_by_key = {}
-    for f in sorted(img_dir.glob("*.png")):
-        parsed = parse_filename(f.name)
-        if not parsed:
-            continue
-        if dim_count is None:
-            dim_count = len(parsed)
-            dim_info = [{'keys': {}, 'all_numeric': True} for _ in range(dim_count)]
-            dim_signature = [(d[0], d[1]) for d in parsed]
-        elif len(parsed) != dim_count:
-            raise ValueError(f"Inconsistent dimension count in {f.name}")
-        this_sig = [(d[0], d[1]) for d in parsed]
-        if this_sig != dim_signature:
-            raise ValueError(f"Dimension signature mismatch in {f.name}")
-        value_keys = []
-        for i,(nid,prop,vnum,vkey,vdisp) in enumerate(parsed):
-            if vnum is None:
-                dim_info[i]['all_numeric'] = False
-            dim_info[i]['keys'].setdefault(vkey, {'num': vnum, 'disp': vdisp})
-            value_keys.append(vkey)
-        key_tuple = tuple(value_keys)
-        images.append((key_tuple, f.name))
-        posters_by_key["|".join(key_tuple)] = f.name
-    if not images:
-        sys.exit("No valid images found.")
-
-    # Optional: scan for mp4s and associate by the same dimension key
-    for f in sorted(img_dir.glob("*.mp4")):
-        parsed = parse_filename(f.name)
-        if not parsed:
-            continue
-        if dim_count is None:
-            # Should not happen if PNGs exist, but guard anyway
-            dim_count = len(parsed)
-            dim_info = [{'keys': {}, 'all_numeric': True} for _ in range(dim_count)]
-            dim_signature = [(d[0], d[1]) for d in parsed]
-        elif len(parsed) != dim_count:
-            # ignore mismatched
-            continue
-        this_sig = [(d[0], d[1]) for d in parsed]
-        if this_sig != dim_signature:
-            continue
-        value_keys = []
-        for i,(nid,prop,vnum,vkey,vdisp) in enumerate(parsed):
-            value_keys.append(vkey)
-        videos_by_key["|".join(value_keys)] = f.name
-
-    dim_values = []
-    for i in range(dim_count):
-        items = dim_info[i]['keys']
-        if dim_info[i]['all_numeric']:
-            order = sorted(items.keys(), key=lambda k: (items[k]['num'], k))
-        else:
-            order = sorted(items.keys())
-        dim_values.append([{'k': k, 'd': items[k]['disp']} for k in order])
-
-    poster_lookup = {"|".join(vals): fname for vals, fname in images}
-
-    # Prepare meta payload for lazy-load only
-    dim_labels = []
-    max_label = 0
-    for (nid, prop) in dim_signature:
-        title = node_titles.get(nid, f"Node {nid}")
-        label = f"{title}:{nid}:{prop}"
-        dim_labels.append(label)
-        max_label = max(max_label, len(label))
-
-    label_em = max(8.0, min(60.0, max_label * 0.62))
-
-    # Lazy-load only: no base64 embedding
-    poster_urls = {
-        fname: relpath_for_html(img_dir / fname, out_base)
-        for _, fname in images
-    }
-    video_urls = {
-        fname: relpath_for_html(img_dir / fname, out_base)
-        for fname in videos_by_key.values()
-    }
-    meta = dict(
-        dim_values=dim_values,
-        poster_lookup=poster_lookup,
-        video_lookup=videos_by_key,
-        dim_labels=dim_labels,
-        label_em=label_em,
-        lazy=True,
-        poster_urls=poster_urls,
-        video_urls=video_urls
-    )
-
-    html_template = Template("""<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -269,7 +15,7 @@ h1{margin:0;font-size:1.05rem;font-weight:600;}
        border-radius:8px;padding:4px 8px;cursor:pointer;}
 #sliders{border:1px solid var(--border);border-radius:8px;padding:8px 10px 2px 10px;
          background:rgba(127,127,127,0.03);}
-.slider-row{display:grid;grid-template-columns:auto ${label_em}em 1fr;
+.slider-row{display:grid;grid-template-columns:auto 16.1em 1fr;
             align-items:center;gap:10px;margin:10px 0;}
 .label-col{justify-self:end;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .slider-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;}
@@ -278,6 +24,21 @@ h1{margin:0;font-size:1.05rem;font-weight:600;}
 #filename a{color:inherit;text-decoration:underline;}
 #canvas-wrap{display:flex;justify-content:center;padding:0 16px 16px 16px;position:relative;}
 canvas{border:1px solid var(--border);background:#000;display:block;}
+/* Play overlay for video (centered) */
+.play-overlay{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:40px; height:40px; border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(255,255,255,0.35);
+  display:none; align-items:center; justify-content:center; cursor:pointer;
+}
+.play-overlay .tri{
+  width:0; height:0;
+  border-left:12px solid #fff;
+  border-top:7px solid transparent;
+  border-bottom:7px solid transparent;
+  margin-left:3px;
+}
 /* Slider base */
 input[type=range]{width:240px;height:26px;background:transparent;}
 /* WebKit */
@@ -306,6 +67,7 @@ input[type=range]:hover::-moz-range-thumb{width:26px;height:26px;}
   <div id="filename"><a id="filenameLink" href="#" target="_blank"></a></div>
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
+    <div id="playOverlay" class="play-overlay" title="Play video"><div class="tri"></div></div>
   </div>
 </div>
 <script>
@@ -320,7 +82,7 @@ input[type=range]:hover::-moz-range-thumb{width:26px;height:26px;}
     else{document.documentElement.setAttribute("data-theme","dark");localStorage.setItem("viewer_theme","dark");}
   };
 })();
-const data=${meta_json};
+const data={"dim_values": [[{"k": "3", "d": "3"}, {"k": "4", "d": "4"}], [{"k": "3.0", "d": "3.0"}, {"k": "4.0", "d": "4.0"}]], "poster_lookup": {"3|3.0": "104-shift-3_0--103-shift-3_0_00002_.png", "3|4.0": "104-shift-3_0--103-shift-4_0_00002_.png", "4|3.0": "104-shift-4_0--103-shift-3_0_00002_.png", "4|4.0": "104-shift-4_0--103-shift-4_0_00002_.png"}, "video_lookup": {"3|3.0": "104-shift-3_0--103-shift-3_0_00001_.mp4", "3|4.0": "104-shift-3_0--103-shift-4_0_00001_.mp4", "4|3.0": "104-shift-4_0--103-shift-3_0_00001_.mp4", "4|4.0": "104-shift-4_0--103-shift-4_0_00001_.mp4"}, "dim_labels": ["ModelSamplingSD3:104:shift", "ModelSamplingSD3:103:shift"], "label_em": 16.12, "lazy": true, "poster_urls": {"104-shift-3_0--103-shift-3_0_00002_.png": "104-shift-3_0--103-shift-3_0_00002_.png", "104-shift-3_0--103-shift-4_0_00002_.png": "104-shift-3_0--103-shift-4_0_00002_.png", "104-shift-4_0--103-shift-3_0_00002_.png": "104-shift-4_0--103-shift-3_0_00002_.png", "104-shift-4_0--103-shift-4_0_00002_.png": "104-shift-4_0--103-shift-4_0_00002_.png"}, "video_urls": {"104-shift-3_0--103-shift-3_0_00001_.mp4": "104-shift-3_0--103-shift-3_0_00001_.mp4", "104-shift-3_0--103-shift-4_0_00001_.mp4": "104-shift-3_0--103-shift-4_0_00001_.mp4", "104-shift-4_0--103-shift-3_0_00001_.mp4": "104-shift-4_0--103-shift-3_0_00001_.mp4", "104-shift-4_0--103-shift-4_0_00001_.mp4": "104-shift-4_0--103-shift-4_0_00001_.mp4"}};
 const dims=data.dim_values.length;
 const curIdx=new Array(dims).fill(0);
 const locked=new Array(dims).fill(false);
@@ -329,6 +91,7 @@ const ctx=canvas.getContext("2d");
 const fnameLink=document.getElementById("filenameLink");
 const slidersRoot=document.getElementById("sliders");
 const wrap=document.getElementById("canvas-wrap");
+const playOverlay=document.getElementById("playOverlay");
 let videoEl=null;
 
 // Image LRU cache for lazy mode
@@ -427,7 +190,7 @@ function updateImage(){
   currentKey=k;
   stopVideo();
   const fname=data.poster_lookup[k];
-  if(!fname){ fnameLink.textContent="No match"; fnameLink.removeAttribute("href"); currentUrl=null; hasVideoCurrent=false; return; }
+  if(!fname){ fnameLink.textContent="No match"; fnameLink.removeAttribute("href"); currentUrl=null; hasVideoCurrent=false; playOverlay.style.display='none'; return; }
   const url=data.poster_urls[fname];
   hasVideoCurrent = !!data.video_lookup[k];
   let im = imgs.has(fname) ? imgs.get(fname) : null;
@@ -452,7 +215,8 @@ function drawAndLink(im, url, fname){
   fnameLink.textContent=fname;
   fnameLink.href=url;
   fnameLink.download=fname;
-  //
+  // show play overlay only on hover and when video exists
+  playOverlay.style.display='none';
 }
 
 document.getElementById("canvas").addEventListener("contextmenu",e=>{
@@ -461,17 +225,10 @@ document.getElementById("canvas").addEventListener("contextmenu",e=>{
 });
 
 // Hover/click to toggle video if available
-canvas.addEventListener('click', (e)=>{
-  if(!hasVideoCurrent) return;
-  const vf = data.video_lookup[currentKey];
-  const vurl = vf ? data.video_urls[vf] : null;
-  if(!vurl) return;
-  if(e.shiftKey){
-    window.open(vurl, '_blank', 'noopener,noreferrer');
-  } else {
-    launchVideo();
-  }
-});
+wrap.addEventListener('mouseenter', ()=>{ if(hasVideoCurrent && !videoEl) playOverlay.style.display='flex'; });
+wrap.addEventListener('mouseleave', ()=>{ playOverlay.style.display='none'; });
+playOverlay.addEventListener('click', ()=>{ if(hasVideoCurrent) launchVideo(); });
+canvas.addEventListener('click', ()=>{ if(hasVideoCurrent) launchVideo(); });
 
 function launchVideo(){
   if(videoEl) return;
@@ -493,6 +250,7 @@ function launchVideo(){
   videoEl.style.height = canvas.height + 'px';
   canvas.style.display='none';
   wrap.appendChild(videoEl);
+  playOverlay.style.display='none';
   // update link to video while playing
   fnameLink.textContent = vf;
   fnameLink.href = vurl;
@@ -521,16 +279,3 @@ function stopVideo(updateLinkBack){
 </script>
 </body>
 </html>
-""")
-
-    html = html_template.substitute(
-        label_em=f"{label_em:.1f}",
-        meta_json=json.dumps(meta)
-    )
-
-    out_html.write_text(html, encoding="utf-8")
-    print("Generated HTML:", out_html)
-    print("Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.")
-
-if __name__ == "__main__":
-    main()

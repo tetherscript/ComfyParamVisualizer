@@ -1,0 +1,50 @@
+You are ChatGPT-5.  
+I need you to recreate a **custom ComfyUI node** exactly according to the following full specification.
+
+---
+
+### **Project Overview**
+
+I want a custom ComfyUI node for version **0.4 or later** that lets me select one image from a batch of images (tensor type `"IMAGE"`) using a **zero-based integer index**, and optionally send it to a **Save Image** node.  
+The node must be completely **stateless** and should **do nothing** if the index is out of range — meaning it returns no output at all, so downstream nodes like Save Image simply won’t execute.
+
+---
+
+### **Requirements**
+
+#### ✅ Functional Behavior
+1. **Input:**
+   - `images`: ComfyUI tensor of shape `[B, C, H, W]`
+   - `selected_index`: integer (zero-based)
+     - `default = 0`
+     - `min = 0`
+     - `max = 1_000_000`
+     - `step = 1`
+
+2. **Output:**
+   - Returns a single-image tensor `[1, C, H, W]` if the index is valid.
+   - Returns **nothing** (empty tuple) if the index is out of range or if the batch is empty.
+
+3. **Behavior Rules:**
+   - If `selected_index < 0` or `selected_index >= batch size`, do nothing (no error, no output).
+   - If `images` isn’t a 4D tensor, raise a clear error.
+   - If `images` is empty, do nothing.
+   - The node must always return a valid ComfyUI output tuple (even if empty).
+
+4. **Purpose:**
+   - To extract a specific frame (e.g., the 10th frame) from a list of generated images that will be used to build a video.
+   - Designed so that the same frame index is always selected when the workflow runs.
+
+5. **State Management:**
+   - The node must be **stateless**.
+   - It must **not maintain or increment counters** between runs.
+   - There is **no need to reset** anything when the workflow restarts.
+
+---
+
+### **ComfyUI Compatibility**
+- Compatible with **ComfyUI 0.4+**
+- Must follow current node registration conventions:
+  ```python
+  NODE_CLASS_MAPPINGS = {...}
+  NODE_DISPLAY_NAME_MAPPINGS = {...}

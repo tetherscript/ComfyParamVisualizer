@@ -1,88 +1,69 @@
-﻿Prompt for ChatGPT 5 â€” Recreate `make_axis_grid_viewer.py`
-===========================================================
-  * renderGrid() obtains desired filenames, calls ensureStructure, then updates all <img> elements (set `decoding = "async"` before assigning `src`). When images load, compute natural dimensions; if scale mode is `auto` and X is active, recompute the auto-fit scale; always apply the current scale to set image widths in pixels.
+Prompt for ChatGPT 5 — Recreate make_axis_grid_viewer.py
+=======================================================
+
 Objective
 ---------
-Generate a **single Python file** named `make_axis_grid_viewer.py` that produces the axis-grid HTML viewer described below. The implementation must use only the Python standard library, target Python 3.8+, start with a Unix shebang, and finish with `if __name__ == "__main__": main()`. Output the code only.
+Generate a single Python file named make_axis_grid_viewer.py that produces the axis-grid HTML viewer described below. Use only the Python standard library, target Python 3.8+, start with a Unix shebang, and finish with:
+  if __name__ == "__main__":
+      main()
+Return only the code.
 
 CLI Specification
 -----------------
-Use `argparse` with **optional** flags (no required positionals):
+Use argparse with optional flags (no required positionals):
+- --images    default: <base>/params/images      (directory with poster PNGs and optional MP4s)
+- --workflow  default: <base>/simple_image1.json (ComfyUI workflow JSON for node titles)
+- -o/--output default: <images>/0000_axis_grid_viewer.html
+- --base      default: . (base path for resolving other paths)
 
-| Option        | Default                                | Purpose |
-|---------------|----------------------------------------|---------|
-| `--images`    | `<base>/params/images`                 | Directory containing PNGs to visualise. |
-| `--workflow`  | `<base>/simple_image1.json`            | ComfyUI workflow JSON (UI export) for node metadata. |
-| `-o/--output` | `<images>/0000_axis_grid_viewer.html`  | Output HTML file; ensure parent folders exist. |
-| `--base`      | `.`                                    | Base path for resolving relative values. |
-
-Backward-compatible positional arguments are supported in the order `[image_dir workflow output]` to fill any missing options. Reject more than three positional args. Resolve all paths using `Path(...).resolve()` after applying defaults.
+Backward-compatible positional arguments are supported in order [image_dir workflow output] to fill missing options. Reject more than three. Resolve all paths using Path(...).resolve() after applying defaults.
 
 Validation & Input Handling
-----------------------------
+---------------------------
 * Confirm the images directory exists and is readable.
-* Confirm the workflow JSON exists and parse it into a dictionary keyed by node IDs. Accept shapes:
-  * `{ "nodes": { id: node, ... } }`
-  * `{ "nodes": [node, ...] }`
-  * `[node, ...]`
-* Derive readable slider labels in priority order: `title`, then `label`, then `type`, else `"Node <id>"`.
+* Confirm the workflow JSON exists and parse into a dictionary keyed by node IDs. Accept shapes: {"nodes": {...}}, {"nodes": [...]}, or a bare list.
+* Derive slider labels with priority: title, then label, then type, else "Node <id>".
 
-PNG Filename Parsing
---------------------
-* Only consider `.png` files.
-* Split the stem on `--`. Each segment must look like `<nodeId>-<prop>-<token>` where:
-  * `nodeId` is digits only.
-  * `prop` matches `[A-Za-z0-9_]+`.
-* Strip trailing counters (`_00001`, `_00001_`, etc.) via regex `r"^(.*?)(_+\d+_?)$"` if the first group is non-empty.
-* Replace `_` with `.` to get a dotted token; if `float(dotted)` succeeds, treat the value as numeric, storing both the numeric value and display string (with `.`). Otherwise mark it as non-numeric and keep the original token string for key/display.
-* Enforce that all PNGs share the same dimension count **and** identical `(nodeId, prop)` signature; error out otherwise.
-* For each dimension collect ordered values:
-  * If all values are numeric, sort by `(numeric_value, key)`.
-  * Otherwise sort lexicographically by key.
+Poster PNG and MP4 Filename Parsing
+-----------------------------------
+* PNGs define the dimension set. MP4s are optional and paired by the same parsed key.
+* Split the stem on "--". Each segment must be <nodeId>-<prop>-<token> with nodeId digits only and prop matching [A-Za-z0-9_]+.
+* Strip trailing counters ("_00001", "_00001_", etc.) using regex r"^(.*?)(_+\d+_?)$" if group 1 is non-empty.
+* Replace '_' with '.' to get a dotted token; if float(dotted) succeeds, treat the value as numeric, storing both numeric value and display string (with '.'). Otherwise keep the raw token for key/display.
+* Enforce that all PNGs share the same dimension count and identical (nodeId, prop) signature; error out otherwise.
+* For each dimension collect ordered values: numeric → sort by (numeric_value, key); otherwise sort lexicographically by key.
 * Build:
-  * `dim_values`: list of lists containing `{ "k": key, "d": display }`.
-  * `lookup`: map of `"k0|k1|...|kN"` â†’ original filename.
+  - dim_values: per-dimension lists of {"k": key, "d": display}
+  - poster_lookup: map "k0|k1|...|kN" → poster filename (.png)
+  - video_lookup: map "k0|k1|...|kN" → video filename (.mp4) when present
 
 HTML Output Requirements
 ------------------------
+* Viewer operates in lazy-load mode only — no base64 embedding.
+* Generate URLs relative to the output HTML (POSIX separators). Do not emit file:// URIs.
+* Title and header must both read ComfyParamVisualizer. Theme toggle persists to localStorage key "viewer_theme" and respects system preference on first visit.
+* Add a Size slider next to Theme:
+  - Range 1–200 (%). Defaults reflect auto-fit when X is active.
+  - Styled consistently with other sliders; label shows the percent.
+* Provide an empty metadata block (<div class="meta"></div>).
 
-* Viewer operates in **lazy-load mode only** â€” no base64 embedding.
-* Generate image URLs **relative** to the output HTML location (use POSIX separators). Do **not** emit `file://` URIs.
-* `<title>` and header `<h1>` must both read `ComfyParamVisualizer`.
-* Theme toggle stored in `localStorage` under `"viewer_theme"`, honouring the system preference on first visit.
-* Theme toggle stored in `localStorage` under `"viewer_theme"`, honouring the system preference on first visit.
+Grid layout (replaces canvas)
+-----------------------------
+* #gridWrap contains #grid.
+* #grid uses CSS Grid with gap: 10px; justify-items: center; justify-content: center (so single image and matrices are centered).
+* Columns: first column is Y headers when Y is active; top row has X headers when X is active.
+* Each image cell is a .cell with an inner .vwrap (position: relative; display: inline-block) containing <a><img></a>. When a video is played, a <video> is inserted into .vwrap and the <img> is hidden.
+* Images use object-fit: contain; background: #000; widths are set via JS in pixels from a scale factor.
 
-* Add a `Size` slider next to the Theme button:
-  * Range 1%–200%.
-  * Defaults to the auto-fit scale when X is active; updates percent label.
-  * Styled to respect light/dark theme (same track/thumb look as sliders).
-* Empty metadata block (provide `<div class="meta"></div>` with no text).
-* Slider UI layout:
-  * Each row contains: `[lock checkbox][label (right-aligned)][value bubble + slider][axis select]`.
-  * Labels formatted `"<Title>:<nodeId>:<prop>"`.
-  * Range width derived from `sliderWidth(n) = min(680, max(140, 140 + (n-2)*36))`.
-  * Range inputs share styling with the aligned viewer: 6px track, 24px thumb (26px on hover), accent color from theme.
-  * Value bubble shows the current display value.
-* Axis select dropdown allows values `"none"`, `"x"`, `"y"`. At most one dimension can own each axis; disabled options should reflect ownership without auto-reassigning other axes.
-* Lock checkbox disables its slider even if the axis is released.
-* Canvas is replaced by a grid layout:
-* Canvas is replaced by a grid layout:
-  * `.grid` uses CSS Grid with 10px gaps. Columns are defined with the first column sized as `max-content` (Y labels), and the remaining X-image columns set to `auto`.
-  * Images use `object-fit: contain; background: #000;` and their width is set in pixels by JS according to a scale factor.
-  * Default behavior auto-fits all X columns to avoid horizontal scrolling (capped at 100% scale). A size slider lets the user override from 1% to 200%.
-  * Maintain `curStruct = { mode, xLen, yLen }` and rebuild the DOM only when structure changes.
-===========================================================
-  * Scaling: when `scaleMode` is `auto` and X is active, recompute the scale on load/resize to fit all X columns (<=100%). In `user` mode, never change scale automatically.
-  * **X axis**: headers along top row; Y header column remains at the far left.
-  * **Y axis**: headers along the first (left) column only.
-  * **X + Y axes**: full matrix with headers on top row and a single Y header column at left.
-  * Maintain `curStruct = { mode, xLen, yLen }` and rebuild the DOM only when structure changes.
-  * For every render, iterate existing `<img>` nodes and update `src`/`href` in place. Missing filenames should clear `src` and remove the anchor `href`.
+Axis/structure and scaling
+--------------------------
+* Maintain curStruct = { mode, xLen, yLen } where mode ∈ {"single","x","y","xy"}. Only rebuild DOM when this changes.
+* computeAutoScale(xCount) picks a scale ≤ 1 so that xCount columns fit within #gridWrap without horizontal scroll, accounting for gap and left/right header columns.
+* User size slider sets scaleMode = 'user' and overrides auto scaling until changed back (auto when needed).
+* Keep Y header column width stable when scaling.
 
 JavaScript Architecture (must match)
 ------------------------------------
-
-```js
 const data = ${meta_json};
 const dims = data.dim_values.length;
 const curIdx = new Array(dims).fill(0);
@@ -95,61 +76,60 @@ const sliderEls = [];
 const lockEls = [];
 const axisSelEls = [];
 let curStruct = { mode: "", xLen: 0, yLen: 0 };
-let imageCells = [];
-```
+let imageCells = []; // array of <img> nodes (posters)
+let natW = 0, natH = 0; // natural poster size used for scaling
 
-Essential helper behaviour:
+Essential helper behaviour
+--------------------------
+* buildUI() sets up sliders, lock checkboxes, axis selects, updates disabled state, and calls syncAxisOptions().
+* updateDisabledState(i) disables a slider when locked or when its axis is x/y.
+* syncAxisOptions() enforces unique axis owners by disabling already-claimed options elsewhere.
+* keyFrom(idxOverride) and fnameFor(idxOverride) generate the current key and poster filename, honoring overrides for X/Y.
+* ensureStructure(hasX, hasY, xLen, yLen) builds #grid with headers and .cell elements only when the structure changes.
+* desiredFilenames(...) returns the poster filenames for the current structure in row-major order.
+* renderGrid():
+  - Calls ensureStructure and applyGridColumnWidths(hasX, hasY, xLen)
+  - Updates each <img> in-place with new poster URL (set decoding="async" before assigning src)
+  - On first non-zero natural size, record natW/natH; if auto scale and X active, recompute scale; applyScaleToImages();
+  - For each cell, set data attributes: dataset.key = key; dataset.hasvid = '1' or '' depending on video_lookup
+  - Remove any existing <video> in a cell when its content changes
+  - In single-image mode, call fitSingleImage() and update on window resize
+* fitSingleImage() caps the single image’s height to available viewport space and resizes any active <video> in that cell to match the <img> size.
 
-* `buildUI()` sets up sliders, lock checkboxes, select elements, updates disabled state, and calls `syncAxisOptions()`.
-* `updateDisabledState(i)` disables sliders when locked or when the axis is set to `x` or `y`.
-* `syncAxisOptions()` enforces unique axis owners by disabling already-claimed options in other selects without changing their existing selection.
-* `keyFrom(idxOverride)` and `fnameFor(idxOverride)` generate lookup keys and filenames using overrides for X/Y indices.
-* `ensureStructure(hasX, hasY, xLen, yLen)` rebuilds DOM only when necessary. Use `.hdr` cells for headers and `.cell` divs containing `<a><img></a>` for images.
-* `desiredFilenames(...)` returns the list of filenames in row-major order for the current structure.
-* `renderGrid()` obtains desired filenames, calls `ensureStructure`, then updates all `<img>` elements (set `decoding = "async"` before assigning `src`).
-* `fitSingleImage()` caps the single imageâ€™s height to the available space.
+Click behaviour (no overlay)
+---------------------------
+* If a cell has a video for its key:
+  - Click on the poster image plays inline: create <video controls autoplay playsInline>, set poster to the poster URL and src to video URL, size to match the <img>’s rendered width/height, hide <img>, and set the cell’s anchor href to the video while playing.
+  - Shift+click opens the MP4 in a new tab instead of inline playback.
+  - On video end or re-render (slider/axis change), remove the <video>, show <img>, and restore anchor href to the poster.
+* If a cell has no video, let the anchor open the poster PNG as usual.
 
 CSS Requirements
 ----------------
-
 * Define light/dark variables identical to the aligned viewer.
-* `.container` spans full width (no fixed max width).
-* `.grid` uses `gap: 10px`.
-* `.hdr` cells style similar to table headers (background tinted, center-aligned).
-* `.cell img` must keep aspect ratio and have black background.
+* .container spans full width.
+* #grid has gap: 10px; justify-items: center; justify-content: center.
+* .hdr cells are center-aligned and theme-aware.
+* .cell .vwrap is position: relative; display: inline-block. .cell img has object-fit: contain; background: #000.
 
 Relative Path Generation
 ------------------------
-
-* Provide a helper `relpath_for_html(target, base)` returning POSIX-style relative paths (replace `\` with `/`).
-* Build `image_urls` using that helper for every PNG relative to the output directory.
-* JSON metadata should include:
-  ```json
-  {
-    "dim_values": [...],
-    "lookup": {...},
-    "dim_labels": [...],
-    "label_em": <float>,
-    "lazy": true,
-    "image_urls": {...}
-  }
-  ```
-  (No absolute paths recorded.)
+* Helper relpath_for_html(target, base) returns a POSIX-style relative path (replace '\\' with '/').
+* Build poster_urls and video_urls using that helper.
+* JSON metadata includes: dim_values, poster_lookup, video_lookup, dim_labels, label_em, lazy=true, poster_urls, video_urls.
 
 Console Output
 --------------
-
 After writing the HTML successfully, print:
-1. `Generated HTML: <absolute_output_path>`
-2. `Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.`
+1) Generated HTML: <absolute_output_path>
+2) Note: Viewer uses lazy-load only. Keep the PNGs in place so the HTML can load them.
 
 Libraries & Utilities
 ---------------------
-
-Only import: `argparse`, `json`, `re`, `os`, `sys`, `pathlib.Path`, `string.Template`. Do not add other dependencies.
-
-Error handling should be consistent with the aligned viewer: print errors to `stderr` and exit with status 1 if inputs are invalid.
+Only import: argparse, json, re, os, sys, pathlib.Path, string.Template. No other dependencies.
+Errors should be printed clearly and the program should exit with status 1.
 
 Deliverable
 -----------
-Return only the Python code implementing these requirements. No markdown or commentary should appear after the code block.
+Return only the Python code implementing these requirements. No markdown or commentary after the code block.
+

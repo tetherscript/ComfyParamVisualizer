@@ -199,7 +199,7 @@ def main():
             order = sorted(items.keys())
         dim_values.append([{'k': k, 'd': items[k]['disp']} for k in order])
 
-    lookup = {"|".join(vals): fname for vals, fname in images}
+    poster_lookup = {"|".join(vals): fname for vals, fname in images}
 
     dim_labels = []
     max_label = 0
@@ -211,17 +211,37 @@ def main():
 
     label_em = max(8.0, min(60.0, max_label * 0.62))
 
-    image_urls = {
+    # Also detect optional MP4s and pair via the same parsed key
+    videos_by_key = {}
+    for f in sorted(img_dir.glob("*.mp4")):
+        parsed = parse_filename(f.name)
+        if not parsed:
+            continue
+        this_sig = [(d[0], d[1]) for d in parsed]
+        if this_sig != dim_signature:
+            continue
+        value_keys = []
+        for (nid, prop, vnum, vkey, vdisp) in parsed:
+            value_keys.append(vkey)
+        videos_by_key["|".join(value_keys)] = f.name
+
+    poster_urls = {
         fname: relpath_for_html(img_dir / fname, out_base)
         for _, fname in images
     }
+    video_urls = {
+        fname: relpath_for_html(img_dir / fname, out_base)
+        for fname in videos_by_key.values()
+    }
     meta = dict(
         dim_values=dim_values,
-        lookup=lookup,
+        poster_lookup=poster_lookup,
+        video_lookup=videos_by_key,
         dim_labels=dim_labels,
         label_em=label_em,
         lazy=True,
-        image_urls=image_urls
+        poster_urls=poster_urls,
+        video_urls=video_urls
     )
 
     html = Template("""<!DOCTYPE html>
@@ -275,12 +295,15 @@ input[type=checkbox]{
   display:grid;
   gap:10px;
   align-items:start;
+  justify-items:center;      /* center items in their tracks */
+  justify-content:center;    /* center the grid as a whole */
   grid-auto-rows:auto;
   background:var(--bg); /* respect theme */
 }
 .hdr{font-size:0.9rem;color:var(--muted);text-align:center;padding:2px 4px;white-space:nowrap;background:var(--bg);}
 .yhdr{text-align:right;padding-right:6px;white-space:nowrap;}
-.cell{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg);}
+.cell{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg);} 
+.cell .vwrap{position:relative; display:inline-block;}
 .cell a{display:block;border:1px solid var(--border);width:auto;}
 .cell img{
   display:block;
@@ -290,6 +313,7 @@ input[type=checkbox]{
   background:#000;
   max-width:none;
 }
+/* Removed play overlay; click or shift-click behavior handled in JS */
 .footer{display:none;}
 input[type=range]{height:26px;background:transparent;}
 input[type=range]::-webkit-slider-runnable-track{height:6px;background:rgba(127,127,127,0.35);border-radius:6px;}
@@ -416,6 +440,7 @@ function applyScaleToImages(){
   if (natW>0){
     const w = Math.max(1, Math.floor(natW * s));
     for(const im of imageCells){ im.style.width = w + 'px'; }
+    syncVideoSizes();
   }
 }
 
@@ -502,7 +527,7 @@ function keyFrom(idxOverride){
 
 function fnameFor(idxOverride){
   const k = keyFrom(idxOverride);
-  return data.lookup[k];
+  return data.poster_lookup[k];
 }
 
 function ensureStructure(hasX, hasY, xLen, yLen){
@@ -562,10 +587,29 @@ function ensureStructure(hasX, hasY, xLen, yLen){
 
 function makeImgCell(){
   const cell=document.createElement("div");cell.className="cell";
+  const vwrap=document.createElement("div");vwrap.className="vwrap";
   const a=document.createElement("a");a.target="_blank";a.rel="noopener noreferrer";
   const im=new Image(); im.loading="lazy"; im.alt="";
   a.appendChild(im);
-  cell.appendChild(a);
+  vwrap.appendChild(a);
+  cell.appendChild(vwrap);
+
+  // Click behavior: normal click plays inline; Shift+click opens video in new tab
+  im.addEventListener('click', (e)=>{
+    if(im.dataset.hasvid==='1'){
+      e.preventDefault();
+      const k = im.dataset.key;
+      const vf = data.video_lookup[k];
+      const vurl = vf ? data.video_urls[vf] : null;
+      if(!vurl) return;
+      if(e.shiftKey){
+        window.open(vurl, '_blank', 'noopener,noreferrer');
+      } else {
+        launchVideoInCell(im);
+      }
+    }
+  });
+
   // return image element so caller can update src without rebuilding
   return im;
 }
@@ -615,6 +659,8 @@ function renderGrid(){
     const im = imageCells[i];
     const fname = names[i];
     const a = im.parentElement;
+    const vwrap = a.parentElement;
+    const overlay = null;
     if(!fname){
       // missing: blank this cell
       if(im.dataset.loaded!=="missing"){
@@ -624,7 +670,14 @@ function renderGrid(){
       }
       continue;
     }
-    const url = data.image_urls[fname];
+    // Stop video if key changes or on update
+    stopVideoForCell(im, true);
+    const k = keyForCellIndex(i, hasX, hasY, xDim, yDim);
+    im.dataset.key = k;
+    const hasVid = !!data.video_lookup[k];
+    im.dataset.hasvid = hasVid ? '1' : '';
+    // overlay removed
+    const url = data.poster_urls[fname];
     if(a.href !== url){
       a.href = url;
     }
@@ -653,6 +706,14 @@ function fitSingleImage(){
   const s = Math.min(1, availableH/nh);
   img.style.width = Math.floor(nw*s) + "px";
   img.style.maxHeight = availableH + "px";
+  // keep video (if any) in sync
+  const vwrap = img.parentElement?.parentElement;
+  const vid = vwrap ? vwrap.querySelector('video') : null;
+  if(vid){
+    const rect2 = img.getBoundingClientRect();
+    vid.style.width = Math.max(1, Math.floor(rect2.width)) + 'px';
+    vid.style.height = Math.max(1, Math.floor(rect2.height)) + 'px';
+  }
 }
 
 // Recompute scales and keep Y header column fixed on resize in grid modes
@@ -670,6 +731,78 @@ window.addEventListener("resize", () => {
 
 buildUI();
 renderGrid();
+
+// Helpers for video per-cell
+function keyForCellIndex(idx, hasX, hasY, xDim, yDim){
+  if(hasX && hasY){
+    const xLen = data.dim_values[xDim].length;
+    const cx = idx % xLen;
+    const ry = Math.floor(idx / xLen);
+    const override={}; override[xDim]=cx; override[yDim]=ry;
+    return keyFrom(override);
+  } else if(hasX){
+    const override={}; override[xDim]=idx; return keyFrom(override);
+  } else if(hasY){
+    const override={}; override[yDim]=idx; return keyFrom(override);
+  } else {
+    return keyFrom(null);
+  }
+}
+
+function launchVideoInCell(im){
+  const a = im.parentElement;
+  const vwrap = a.parentElement;
+  if(vwrap.querySelector('video')) return;
+  const k = im.dataset.key;
+  const vf = data.video_lookup[k];
+  if(!vf) return;
+  const vurl = data.video_urls[vf];
+  const pf = data.poster_lookup[k];
+  const purl = pf ? data.poster_urls[pf] : '';
+  const vid = document.createElement('video');
+  vid.controls = true; vid.autoplay = true; vid.playsInline = true; vid.poster = purl;
+  vid.src = vurl; vid.style.display='block'; vid.style.background='#000';
+  const rect = im.getBoundingClientRect();
+  vid.style.width = Math.max(1, Math.floor(rect.width)) + 'px';
+  vid.style.height = Math.max(1, Math.floor(rect.height)) + 'px';
+  im.style.display='none';
+  vwrap.insertBefore(vid, a);
+  // Update link to point to video while playing
+  a.href = vurl;
+  const onEnd = ()=>{ stopVideoForCell(im, true); };
+  vid.addEventListener('ended', onEnd);
+}
+
+function stopVideoForCell(im, restoreLink){
+  const a = im.parentElement;
+  const vwrap = a.parentElement;
+  const vid = vwrap.querySelector('video');
+  if(!vid) return;
+  try{ vid.pause(); }catch(e){}
+  try{ vid.removeAttribute('src'); vid.load?.(); }catch(e){}
+  try{ vid.remove(); }catch(e){}
+  im.style.display='block';
+  if(restoreLink){
+    const pf = im.dataset.key ? data.poster_lookup[im.dataset.key] : null;
+    if(pf){ a.href = data.poster_urls[pf]; }
+  }
+}
+
+// Keep video width in sync when scaling
+function syncVideoSizes(){
+  const cells = gridRoot.querySelectorAll('.cell');
+  for(const cell of cells){
+    const vwrap = cell.querySelector('.vwrap');
+    if(!vwrap) continue;
+    const vid = vwrap.querySelector('video');
+    const im = vwrap.querySelector('img');
+    if(vid && im){
+      const rect = im.getBoundingClientRect();
+      vid.style.width = Math.max(1, Math.floor(rect.width)) + 'px';
+      vid.style.height = Math.max(1, Math.floor(rect.height)) + 'px';
+    }
+  }
+}
 </script>
 </body>
 </html>

@@ -22,8 +22,23 @@ h1{margin:0;font-size:1.05rem;font-weight:600;}
 .value-bubble{font-size:0.85rem;color:var(--muted);}
 #filename{text-align:center;font-size:0.85rem;opacity:0.7;margin:8px 0 6px 0;word-break:break-all;}
 #filename a{color:inherit;text-decoration:underline;}
-#canvas-wrap{display:flex;justify-content:center;padding:0 16px 16px 16px;}
+#canvas-wrap{display:flex;justify-content:center;padding:0 16px 16px 16px;position:relative;}
 canvas{border:1px solid var(--border);background:#000;display:block;}
+/* Play overlay for video (centered) */
+.play-overlay{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:40px; height:40px; border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(255,255,255,0.35);
+  display:none; align-items:center; justify-content:center; cursor:pointer;
+}
+.play-overlay .tri{
+  width:0; height:0;
+  border-left:12px solid #fff;
+  border-top:7px solid transparent;
+  border-bottom:7px solid transparent;
+  margin-left:3px;
+}
 /* Slider base */
 input[type=range]{width:240px;height:26px;background:transparent;}
 /* WebKit */
@@ -50,7 +65,10 @@ input[type=range]:hover::-moz-range-thumb{width:26px;height:26px;}
   </div>
   <div id="sliders"></div>
   <div id="filename"><a id="filenameLink" href="#" target="_blank"></a></div>
-  <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="playOverlay" class="play-overlay" title="Play video"><div class="tri"></div></div>
+  </div>
 </div>
 <script>
 (function(){
@@ -64,7 +82,7 @@ input[type=range]:hover::-moz-range-thumb{width:26px;height:26px;}
     else{document.documentElement.setAttribute("data-theme","dark");localStorage.setItem("viewer_theme","dark");}
   };
 })();
-const data={"dim_values": [[{"k": "8", "d": "8"}, {"k": "9", "d": "9"}, {"k": "10", "d": "10"}], [{"k": "20", "d": "20"}, {"k": "30", "d": "30"}, {"k": "40", "d": "40"}, {"k": "50", "d": "50"}]], "lookup": {"10|20": "3-cfg-10_0--3-steps-20_00001_.png", "10|30": "3-cfg-10_0--3-steps-30_00001_.png", "10|40": "3-cfg-10_0--3-steps-40_00001_.png", "10|50": "3-cfg-10_0--3-steps-50_00001_.png", "8|20": "3-cfg-8_0--3-steps-20_00001_.png", "8|30": "3-cfg-8_0--3-steps-30_00001_.png", "8|40": "3-cfg-8_0--3-steps-40_00001_.png", "8|50": "3-cfg-8_0--3-steps-50_00001_.png", "9|20": "3-cfg-9_0--3-steps-20_00001_.png", "9|30": "3-cfg-9_0--3-steps-30_00001_.png", "9|40": "3-cfg-9_0--3-steps-40_00001_.png", "9|50": "3-cfg-9_0--3-steps-50_00001_.png"}, "dim_labels": ["KSampler:3:cfg", "KSampler:3:steps"], "label_em": 9.92, "lazy": true, "image_urls": {"3-cfg-10_0--3-steps-20_00001_.png": "3-cfg-10_0--3-steps-20_00001_.png", "3-cfg-10_0--3-steps-30_00001_.png": "3-cfg-10_0--3-steps-30_00001_.png", "3-cfg-10_0--3-steps-40_00001_.png": "3-cfg-10_0--3-steps-40_00001_.png", "3-cfg-10_0--3-steps-50_00001_.png": "3-cfg-10_0--3-steps-50_00001_.png", "3-cfg-8_0--3-steps-20_00001_.png": "3-cfg-8_0--3-steps-20_00001_.png", "3-cfg-8_0--3-steps-30_00001_.png": "3-cfg-8_0--3-steps-30_00001_.png", "3-cfg-8_0--3-steps-40_00001_.png": "3-cfg-8_0--3-steps-40_00001_.png", "3-cfg-8_0--3-steps-50_00001_.png": "3-cfg-8_0--3-steps-50_00001_.png", "3-cfg-9_0--3-steps-20_00001_.png": "3-cfg-9_0--3-steps-20_00001_.png", "3-cfg-9_0--3-steps-30_00001_.png": "3-cfg-9_0--3-steps-30_00001_.png", "3-cfg-9_0--3-steps-40_00001_.png": "3-cfg-9_0--3-steps-40_00001_.png", "3-cfg-9_0--3-steps-50_00001_.png": "3-cfg-9_0--3-steps-50_00001_.png"}};
+const data={"dim_values": [[{"k": "8", "d": "8"}, {"k": "9", "d": "9"}, {"k": "10", "d": "10"}], [{"k": "20", "d": "20"}, {"k": "30", "d": "30"}, {"k": "40", "d": "40"}, {"k": "50", "d": "50"}]], "poster_lookup": {"10|20": "3-cfg-10_0--3-steps-20_00001_.png", "10|30": "3-cfg-10_0--3-steps-30_00001_.png", "10|40": "3-cfg-10_0--3-steps-40_00001_.png", "10|50": "3-cfg-10_0--3-steps-50_00001_.png", "8|20": "3-cfg-8_0--3-steps-20_00001_.png", "8|30": "3-cfg-8_0--3-steps-30_00001_.png", "8|40": "3-cfg-8_0--3-steps-40_00001_.png", "8|50": "3-cfg-8_0--3-steps-50_00001_.png", "9|20": "3-cfg-9_0--3-steps-20_00001_.png", "9|30": "3-cfg-9_0--3-steps-30_00001_.png", "9|40": "3-cfg-9_0--3-steps-40_00001_.png", "9|50": "3-cfg-9_0--3-steps-50_00001_.png"}, "video_lookup": {}, "dim_labels": ["KSampler:3:cfg", "KSampler:3:steps"], "label_em": 9.92, "lazy": true, "poster_urls": {"3-cfg-10_0--3-steps-20_00001_.png": "3-cfg-10_0--3-steps-20_00001_.png", "3-cfg-10_0--3-steps-30_00001_.png": "3-cfg-10_0--3-steps-30_00001_.png", "3-cfg-10_0--3-steps-40_00001_.png": "3-cfg-10_0--3-steps-40_00001_.png", "3-cfg-10_0--3-steps-50_00001_.png": "3-cfg-10_0--3-steps-50_00001_.png", "3-cfg-8_0--3-steps-20_00001_.png": "3-cfg-8_0--3-steps-20_00001_.png", "3-cfg-8_0--3-steps-30_00001_.png": "3-cfg-8_0--3-steps-30_00001_.png", "3-cfg-8_0--3-steps-40_00001_.png": "3-cfg-8_0--3-steps-40_00001_.png", "3-cfg-8_0--3-steps-50_00001_.png": "3-cfg-8_0--3-steps-50_00001_.png", "3-cfg-9_0--3-steps-20_00001_.png": "3-cfg-9_0--3-steps-20_00001_.png", "3-cfg-9_0--3-steps-30_00001_.png": "3-cfg-9_0--3-steps-30_00001_.png", "3-cfg-9_0--3-steps-40_00001_.png": "3-cfg-9_0--3-steps-40_00001_.png", "3-cfg-9_0--3-steps-50_00001_.png": "3-cfg-9_0--3-steps-50_00001_.png"}, "video_urls": {}};
 const dims=data.dim_values.length;
 const curIdx=new Array(dims).fill(0);
 const locked=new Array(dims).fill(false);
@@ -72,6 +90,9 @@ const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
 const fnameLink=document.getElementById("filenameLink");
 const slidersRoot=document.getElementById("sliders");
+const wrap=document.getElementById("canvas-wrap");
+const playOverlay=document.getElementById("playOverlay");
+let videoEl=null;
 
 // Image LRU cache for lazy mode
 const CAP=64;
@@ -109,6 +130,12 @@ function sizeCanvasFor(nw, nh){
     canvas.width = sw;
     canvas.height = sh;
   }
+  if (typeof videoEl !== 'undefined' && videoEl){
+    videoEl.width = sw;
+    videoEl.height = sh;
+    videoEl.style.width = sw + 'px';
+    videoEl.style.height = sh + 'px';
+  }
 }
 
 // Redraw current image to fit
@@ -128,11 +155,11 @@ function initAfterFirstImage(w,h){
 }
 
 // Load one arbitrary image to size the canvas
-const firstFname = Object.values(data.lookup)[0];
+const firstFname = Object.values(data.poster_lookup)[0];
 const probe=new Image();
 probe.onload=()=>initAfterFirstImage(probe.naturalWidth, probe.naturalHeight);
 probe.onerror=()=>initAfterFirstImage(512,512);
-probe.src=data.image_urls[firstFname];
+probe.src=data.poster_urls[firstFname];
 
 function sliderWidth(n){return Math.min(680,Math.max(140,140+(n-2)*36));}
 function buildUI(){
@@ -156,10 +183,16 @@ function key(){return curIdx.map((v,d)=>data.dim_values[d][v].k).join("|");}
 
 let currentUrl=null;
 let currentImg=null;
+let currentKey=null;
+let hasVideoCurrent=false;
 function updateImage(){
-  const fname=data.lookup[key()];
-  if(!fname){ fnameLink.textContent="No match"; fnameLink.removeAttribute("href"); currentUrl=null; return; }
-  const url=data.image_urls[fname];
+  const k=key();
+  currentKey=k;
+  stopVideo();
+  const fname=data.poster_lookup[k];
+  if(!fname){ fnameLink.textContent="No match"; fnameLink.removeAttribute("href"); currentUrl=null; hasVideoCurrent=false; playOverlay.style.display='none'; return; }
+  const url=data.poster_urls[fname];
+  hasVideoCurrent = !!data.video_lookup[k];
   let im = imgs.has(fname) ? imgs.get(fname) : null;
   if(im && im.complete){
     drawAndLink(im, url, fname);
@@ -182,12 +215,66 @@ function drawAndLink(im, url, fname){
   fnameLink.textContent=fname;
   fnameLink.href=url;
   fnameLink.download=fname;
+  // show play overlay only on hover and when video exists
+  playOverlay.style.display='none';
 }
 
 document.getElementById("canvas").addEventListener("contextmenu",e=>{
   e.preventDefault();
   if(currentUrl) window.open(currentUrl,"_blank","noopener,noreferrer");
 });
+
+// Hover/click to toggle video if available
+wrap.addEventListener('mouseenter', ()=>{ if(hasVideoCurrent && !videoEl) playOverlay.style.display='flex'; });
+wrap.addEventListener('mouseleave', ()=>{ playOverlay.style.display='none'; });
+playOverlay.addEventListener('click', ()=>{ if(hasVideoCurrent) launchVideo(); });
+canvas.addEventListener('click', ()=>{ if(hasVideoCurrent) launchVideo(); });
+
+function launchVideo(){
+  if(videoEl) return;
+  const vf = data.video_lookup[currentKey];
+  if(!vf) return;
+  const vurl = data.video_urls[vf];
+  videoEl = document.createElement('video');
+  videoEl.controls = true;
+  videoEl.autoplay = true;
+  videoEl.playsInline = true;
+  videoEl.poster = currentUrl || '';
+  videoEl.src = vurl;
+  videoEl.style.display='block';
+  videoEl.style.background='#000';
+  // match canvas size
+  videoEl.width = canvas.width;
+  videoEl.height = canvas.height;
+  videoEl.style.width = canvas.width + 'px';
+  videoEl.style.height = canvas.height + 'px';
+  canvas.style.display='none';
+  wrap.appendChild(videoEl);
+  playOverlay.style.display='none';
+  // update link to video while playing
+  fnameLink.textContent = vf;
+  fnameLink.href = vurl;
+  fnameLink.download = vf;
+  videoEl.addEventListener('ended', ()=>{ stopVideo(true); });
+}
+
+function stopVideo(updateLinkBack){
+  if(!videoEl) return;
+  try{ videoEl.pause(); }catch(e){}
+  try{ videoEl.removeAttribute('src'); videoEl.load?.(); }catch(e){}
+  try{ videoEl.remove(); }catch(e){}
+  videoEl=null;
+  canvas.style.display='block';
+  if(updateLinkBack){
+    const pf = data.poster_lookup[currentKey];
+    if(pf){
+      const purl = data.poster_urls[pf];
+      fnameLink.textContent = pf;
+      fnameLink.href = purl;
+      fnameLink.download = pf;
+    }
+  }
+}
 
 </script>
 </body>
