@@ -31,6 +31,7 @@ With this in mind, ComfyParamVisualizer was created.
 - usable with any workflow
 - usable with any ComfyUI installation (no sage, with sage, portable, not portable, Windows, Linux).
 - doesn't conflict with any custom nodes, because it is not used within the ComfyUI user interface.
+- works with image and video workflows
 
 > [!TIP]
 > Terminology alert: 'Scrubbing'. The grabbing of a slider and moving it back and forth to change the values quickly, originally referred to scrubbing back and forth in a video player. Scrubbing those params will help you understand ComfyUI.
@@ -153,8 +154,14 @@ Note: the --save-target could also be:
 which dumps the filename_prefix into any node that can accept a string. In this case it is a String primitive node, which in turn is used to set the filename_prefix of a Save Image node.  By setting this one node, the workflow can re-use this single string node to set the filename_prefix in multiple nodes, like when you save a video, and also a single frame from that video to be used as a thumbnail, both with the same filename, but different extensions.  This is needed to view videos in the html viewers.
 ![filename_prefix](https://github.com/user-attachments/assets/eddc07aa-3f90-4955-b57b-eecb33e28417)
 
+# 6. Video
+Generating video files that can be displayed in the viewer requires that you generate a thumbnail/placeholder/poster .png file for the video file .mp4.  But which frame of the video will you use?  We have included a solution for this:
+1) Use a simple custom node in 1Misc/select_image_by_index.py that allows you to specify the zero-based index of the image that you want to save as the thumbnail.
+2) Use a build-in string primitive node to receive the subfolder, and then connect the output of that node to the filename_prefix of your Save Image and Save Video nodes.
+From the SimpleImageDemo workflow
+<img width="1715" height="1650" alt="image" src="https://github.com/user-attachments/assets/5404d0dc-a1b1-43c0-8cfa-37ff8f8d89e2" />
 
-# 5. Generate the axis grid viewer html file
+# 7. Generate the axis grid viewer html file
 Edit `2 - gen_axis_grid_viewer.bat` and point it to your workflow file (not the api one).
 ```
 @echo off
